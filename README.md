@@ -306,8 +306,14 @@ docker compose --profile postgres up -d
 ### Bare Node
 
 ```bash
-npm ci && npx prisma migrate deploy && npm run build && npm start
+npm ci && npx prisma db push && npm run build && npm start
 ```
+
+Serves on `http://127.0.0.1:3000`. Use `PORT` to change it.
+
+`npm start` runs `scripts/serve.mjs` rather than `next start`, because `next start` does **not** work with the `output: "standalone"` build this project uses — it refuses and serves nothing. The script assembles the standalone bundle (copying `.next/static` and `public` into it, which Next.js does not do itself) and launches `server.js`. The Dockerfile performs the same copies as explicit layers.
+
+The server binds `0.0.0.0`, which is IPv4-only. On systems that resolve `localhost` to IPv6 `::1` first — Windows does — use `127.0.0.1` instead; the startup banner prints it for you.
 
 Put nginx or Caddy in front for TLS. Behind a reverse proxy, `secure` cookies require the connection to actually be HTTPS at the browser.
 
@@ -374,7 +380,7 @@ lumina-lms/
 |---|---|
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Production build (runs `prisma generate` first) |
-| `npm start` | Serve the production build |
+| `npm start` | Serve the production build (assembles the standalone bundle first) |
 | `npm run setup` | One-shot local setup: provisions `.env`, mints `AUTH_SECRET`, applies schema, seeds. Idempotent |
 | `npm run setup:empty` | Same, without the demo data — first registered account becomes admin |
 | `npm run db:push` | Sync schema without a migration (dev) |
