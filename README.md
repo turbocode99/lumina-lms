@@ -61,6 +61,8 @@ npm run dev
 
 Open <http://localhost:3000> and sign in as `admin@example.com` / `Password123!`.
 
+If something else already has port 3000, both `npm run dev` and `npm start` pick the next free port and tell you which one they took. Set `PORT` to choose explicitly, or pass `--strict-port` to fail instead of moving.
+
 That's it — four commands, no manual file editing. `npm run setup` creates `.env` from the template, generates a real random `AUTH_SECRET`, applies the schema, and loads the demo dataset. It's safe to re-run: an existing `.env` is never overwritten, and only a placeholder secret gets replaced.
 
 > **Want an empty instance instead of demo data?** Use `npm run setup:empty`. The first account to register is automatically made an administrator, so you can stand up a real organization without touching the database.
@@ -315,6 +317,14 @@ Serves on `http://127.0.0.1:3000`. Use `PORT` to change it.
 
 The server binds `0.0.0.0`, which is IPv4-only. On systems that resolve `localhost` to IPv6 `::1` first — Windows does — use `127.0.0.1` instead; the startup banner prints it for you.
 
+**Ports.** If the requested port is taken, the launcher scans upward for a free one and reports the change. In a container or behind a reverse proxy the port is part of the contract, so add `--strict-port` there to fail loudly instead:
+
+```bash
+PORT=3000 npm start -- --strict-port
+```
+
+**Build directories.** `next.config.ts` points dev at `.next-dev` and production at `.next`. They share `.next` by default, which combined with `output: "standalone"` means a `next dev` after a `next build` reads the production artifacts and hangs at "Starting…" indefinitely — no error, no timeout. Separate directories let either command follow the other with no cleanup step.
+
 Put nginx or Caddy in front for TLS. Behind a reverse proxy, `secure` cookies require the connection to actually be HTTPS at the browser.
 
 ### Vercel / managed platforms
@@ -378,7 +388,7 @@ lumina-lms/
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Dev server with hot reload |
+| `npm run dev` | Dev server with hot reload. Picks a free port if yours is taken |
 | `npm run build` | Production build (runs `prisma generate` first) |
 | `npm start` | Serve the production build (assembles the standalone bundle first) |
 | `npm run setup` | One-shot local setup: provisions `.env`, mints `AUTH_SECRET`, applies schema, seeds. Idempotent |

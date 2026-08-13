@@ -6,6 +6,8 @@ node_modules/
 
 # next.js
 /.next/
+# Dev uses a separate distDir so it cannot clobber a production build.
+/.next-dev/
 /out/
 next-env.d.ts
 
