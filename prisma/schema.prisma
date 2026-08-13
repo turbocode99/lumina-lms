@@ -1,0 +1,479 @@
+// ---------------------------------------------------------------------------
+// Lumina LMS data model
+//
+// The schema is written to be portable: it uses no provider-specific column
+// types, no native enums, and no array columns. Switching from SQLite to
+// PostgreSQL is a one-line change to `provider` below followed by
+// `npx prisma migrate dev`.
+//
+// Fields that would be enums on Postgres are plain strings here, with the
+// allowed values documented above each one and enforced in src/lib/enums.ts.
+// Fields that would be arrays are stored as JSON-encoded strings; helpers in
+// src/lib/json.ts read and write them.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Change to "postgresql" (or "mysql") for a multi-instance deployment.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  /// LEARNER | INSTRUCTOR | ADMIN
+  role         String    @default("LEARNER")
+  /// Job title, e.g. "Senior Platform Engineer"
+  title        String?
+  department   String?
+  headline     String?
+  bio          String?
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  coursesAuthored  Course[]         @relation("CourseInstructor")
+  enrollments      Enrollment[]
+  lessonProgress   LessonProgress[]
+  quizAttempts     QuizAttempt[]
+  reviews          Review[]
+  notes            Note[]
+  questions        Question[]
+  answers          Answer[]
+  pathsCreated     LearningPath[]   @relation("PathCreator")
+  pathEnrollments  PathEnrollment[]
+  assignments      Assignment[]     @relation("AssignmentTarget")
+  assignmentsMade  Assignment[]     @relation("AssignmentAuthor")
+  certificates     Certificate[]
+  notifications    Notification[]
+  activity         ActivityLog[]
+
+  @@index([role])
+  @@index([department])
+}
+
+// ---------------------------------------------------------------------------
+// Taxonomy
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  /// lucide-react icon name, rendered by src/components/CategoryIcon.tsx
+  icon        String   @default("BookOpen")
+  color       String   @default("#6366f1")
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  courses Course[]
+}
+
+// ---------------------------------------------------------------------------
+// Course content
+// ---------------------------------------------------------------------------
+
+model Course {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  title        String
+  subtitle     String?
+  description  String?
+  thumbnailUrl String?
+  promoVideoUrl String?
+
+  categoryId   String?
+  instructorId String
+
+  /// Beginner | Intermediate | Advanced | All Levels
+  level    String @default("All Levels")
+  language String @default("English")
+  /// DRAFT | PUBLISHED | ARCHIVED
+  status   String @default("DRAFT")
+
+  /// JSON string array — "what you'll learn" bullets
+  objectives   String @default("[]")
+  /// JSON string array — prerequisites
+  requirements String @default("[]")
+  /// JSON string array — who this course is for
+  audience     String @default("[]")
+  /// JSON string array — free-text tags used by search
+  tags         String @default("[]")
+
+  /// Denormalised for fast catalog rendering; recomputed on content change.
+  durationMinutes Int   @default(0)
+  lessonCount     Int   @default(0)
+  ratingAvg       Float @default(0)
+  ratingCount     Int   @default(0)
+  enrollmentCount Int   @default(0)
+
+  /// Org-wide required training surfaces separately from the optional catalog.
+  isMandatory Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  instructor   User          @relation("CourseInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  sections     Section[]
+  enrollments  Enrollment[]
+  reviews      Review[]
+  questions    Question[]
+  pathItems    PathItem[]
+  assignments  Assignment[]
+  certificates Certificate[]
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([instructorId])
+  @@index([isMandatory])
+}
+
+model Section {
+  id       String @id @default(cuid())
+  courseId String
+  title    String
+  order    Int    @default(0)
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, order])
+}
+
+model Lesson {
+  id        String @id @default(cuid())
+  sectionId String
+  title     String
+  /// VIDEO | ARTICLE | QUIZ | RESOURCE
+  type      String @default("VIDEO")
+  order     Int    @default(0)
+
+  /// VIDEO: playable URL or /api/media/<key>. RESOURCE: download URL.
+  contentUrl String?
+  /// ARTICLE: markdown body.
+  contentText String?
+  /// Short blurb shown in the curriculum list.
+  summary     String?
+
+  durationSeconds Int     @default(0)
+  /// Preview lessons are viewable before enrolling.
+  isPreview       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  section      Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions    QuizQuestion[]
+  attempts     QuizAttempt[]
+  progress     LessonProgress[]
+  notes        Note[]
+  discussions  Question[]
+
+  @@index([sectionId, order])
+}
+
+// ---------------------------------------------------------------------------
+// Quizzes
+// ---------------------------------------------------------------------------
+
+model QuizQuestion {
+  id     String @id @default(cuid())
+  lessonId String
+  prompt   String
+  /// SINGLE | MULTI | TRUE_FALSE
+  type     String @default("SINGLE")
+  /// Shown after grading to explain the correct answer.
+  explanation String?
+  points   Int    @default(1)
+  order    Int    @default(0)
+
+  lesson  Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  options QuizOption[]
+
+  @@index([lessonId, order])
+}
+
+model QuizOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int     @default(0)
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, order])
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  /// Percentage 0-100.
+  score     Int
+  passed    Boolean
+  attemptNo Int      @default(1)
+  /// JSON: { [questionId]: string[] } — the option ids the learner selected.
+  answers   String   @default("{}")
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lessonId])
+}
+
+// ---------------------------------------------------------------------------
+// Enrollment & progress
+// ---------------------------------------------------------------------------
+
+model Enrollment {
+  id       String @id @default(cuid())
+  userId   String
+  courseId String
+
+  /// SELF | ASSIGNED | PATH
+  source          String    @default("SELF")
+  progressPercent Int       @default(0)
+  lastLessonId    String?
+  enrolledAt      DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonProgress LessonProgress[]
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id           String @id @default(cuid())
+  userId       String
+  lessonId     String
+  enrollmentId String
+
+  completed      Boolean   @default(false)
+  secondsWatched Int       @default(0)
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([enrollmentId])
+}
+
+// ---------------------------------------------------------------------------
+// Social — reviews, notes, Q&A
+// ---------------------------------------------------------------------------
+
+model Review {
+  id       String   @id @default(cuid())
+  userId   String
+  courseId String
+  /// 1-5
+  rating   Int
+  comment  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model Note {
+  id       String @id @default(cuid())
+  userId   String
+  lessonId String
+  /// Playback position the note was taken at, for video lessons.
+  timestampSeconds Int      @default(0)
+  body             String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lessonId])
+}
+
+model Question {
+  id       String  @id @default(cuid())
+  userId   String
+  courseId String
+  lessonId String?
+  title    String
+  body     String
+  resolved Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson  Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  answers Answer[]
+
+  @@index([courseId])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  userId     String
+  body       String
+  isAccepted Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+// ---------------------------------------------------------------------------
+// Learning paths — ordered course tracks, e.g. "New Engineer Onboarding"
+// ---------------------------------------------------------------------------
+
+model LearningPath {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  title        String
+  description  String?
+  thumbnailUrl String?
+  color        String  @default("#6366f1")
+  createdById  String
+  isPublished  Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdBy    User             @relation("PathCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  items        PathItem[]
+  enrollments  PathEnrollment[]
+  assignments  Assignment[]
+  certificates Certificate[]
+}
+
+model PathItem {
+  id         String  @id @default(cuid())
+  pathId     String
+  courseId   String
+  order      Int     @default(0)
+  isRequired Boolean @default(true)
+
+  path   LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  course Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([pathId, courseId])
+  @@index([pathId, order])
+}
+
+model PathEnrollment {
+  id     String @id @default(cuid())
+  userId String
+  pathId String
+
+  progressPercent Int       @default(0)
+  enrolledAt      DateTime  @default(now())
+  completedAt     DateTime?
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pathId])
+}
+
+// ---------------------------------------------------------------------------
+// Mandatory training assignments
+// ---------------------------------------------------------------------------
+
+model Assignment {
+  id           String    @id @default(cuid())
+  userId       String
+  assignedById String
+  courseId     String?
+  pathId       String?
+  dueAt        DateTime?
+  note         String?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  user       User          @relation("AssignmentTarget", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User          @relation("AssignmentAuthor", fields: [assignedById], references: [id], onDelete: Cascade)
+  course     Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  path       LearningPath? @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([dueAt])
+}
+
+// ---------------------------------------------------------------------------
+// Certificates & notifications
+// ---------------------------------------------------------------------------
+
+model Certificate {
+  id       String   @id @default(cuid())
+  /// Human-readable verification code printed on the certificate.
+  serial   String   @unique
+  userId   String
+  courseId String?
+  pathId   String?
+  title    String
+  issuedAt DateTime @default(now())
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  path   LearningPath? @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  /// ASSIGNMENT | DUE_SOON | OVERDUE | ANSWER | REVIEW | CERTIFICATE | ENROLLMENT | SYSTEM
+  type   String @default("SYSTEM")
+  title  String
+  body   String?
+  link   String?
+  read   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model ActivityLog {
+  id       String   @id @default(cuid())
+  userId   String
+  action   String
+  entity   String
+  entityId String?
+  meta     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}

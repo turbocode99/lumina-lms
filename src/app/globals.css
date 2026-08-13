@@ -1,0 +1,706 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Lumina LMS — Neumorphic design system
+
+   Soft UI works by lighting every surface from one consistent direction: a pale
+   highlight at the top-left, a shadow at the bottom-right, both derived from the
+   page background rather than layered on top of it. Get those two derived
+   colours right and everything else — buttons, cards, inputs, the video
+   scrubber — falls out of two utilities: .neu (raised) and .neu-inset (pressed).
+
+   All tokens live here. `lumina.config.ts` drives the accent ramp, so rebranding
+   is one edit there plus the --accent block below.
+   ========================================================================== */
+
+@theme {
+  /* --font-inter is injected by next/font in src/app/layout.tsx. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-accent: #6366f1;
+  --color-accent-soft: #818cf8;
+  --color-accent-strong: #4f46e5;
+  --color-secondary: #06b6d4;
+
+  --radius-neu: 20px;
+  --radius-neu-sm: 12px;
+  --radius-neu-lg: 28px;
+}
+
+/* --------------------------------------------------------------------------
+   Light theme (default)
+   -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* The single source colour. Every shadow below is derived from it. */
+  --surface: #e8ecf3;
+  --surface-raised: #edf0f6;
+  --surface-sunken: #e0e5ee;
+
+  --shadow-light: #ffffff;
+  --shadow-dark: #c3cad6;
+
+  --text-primary: #1f2733;
+  --text-secondary: #5a6675;
+  --text-muted: #8c97a6;
+  --border-subtle: rgba(120, 135, 160, 0.14);
+
+  --accent: #6366f1;
+  --accent-soft: #818cf8;
+  --accent-strong: #4f46e5;
+  --accent-contrast: #ffffff;
+  --secondary: #06b6d4;
+
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  --depth: 9px;
+  --depth-sm: 5px;
+  --depth-lg: 16px;
+  --blur: 18px;
+  --blur-sm: 10px;
+  --blur-lg: 32px;
+
+  --glow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* --------------------------------------------------------------------------
+   Dark theme — not an inversion. Dark neumorphism needs a *lifted* base so the
+   highlight has somewhere to go; pure black kills the effect entirely.
+   -------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #23262e;
+  --surface-raised: #272b34;
+  --surface-sunken: #1e2128;
+
+  --shadow-light: #2e323d;
+  --shadow-dark: #171a20;
+
+  --text-primary: #e8ecf3;
+  --text-secondary: #a3adbd;
+  --text-muted: #6f7a8a;
+  --border-subtle: rgba(160, 175, 200, 0.1);
+
+  --accent: #818cf8;
+  --accent-soft: #a5b4fc;
+  --accent-strong: #6366f1;
+  --accent-contrast: #16181d;
+  --secondary: #22d3ee;
+
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+
+  --glow: 0 0 24px rgba(129, 140, 248, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --surface: #23262e;
+    --surface-raised: #272b34;
+    --surface-sunken: #1e2128;
+
+    --shadow-light: #2e323d;
+    --shadow-dark: #171a20;
+
+    --text-primary: #e8ecf3;
+    --text-secondary: #a3adbd;
+    --text-muted: #6f7a8a;
+    --border-subtle: rgba(160, 175, 200, 0.1);
+
+    --accent: #818cf8;
+    --accent-soft: #a5b4fc;
+    --accent-strong: #6366f1;
+    --accent-contrast: #16181d;
+    --secondary: #22d3ee;
+
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --info: #60a5fa;
+
+    --glow: 0 0 24px rgba(129, 140, 248, 0.16);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  /* A whisper of ambient colour keeps the flat base from reading as grey card. */
+  background-image:
+    radial-gradient(
+      ellipse 80% 60% at 15% -10%,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 70% 55% at 95% 5%,
+      color-mix(in srgb, var(--secondary) 7%, transparent),
+      transparent
+    );
+  background-attachment: fixed;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars — flat rails read as part of the soft surface
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--shadow-dark) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--shadow-dark);
+  border-radius: 999px;
+  border: 2px solid var(--surface);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 55%, var(--shadow-dark));
+}
+
+/* ==========================================================================
+   Core neumorphic utilities
+   ========================================================================== */
+
+/* Raised — the default state for cards, buttons, and nav items. */
+.neu {
+  background: var(--surface);
+  box-shadow:
+    var(--depth) var(--depth) var(--blur) var(--shadow-dark),
+    calc(var(--depth) * -1) calc(var(--depth) * -1) var(--blur) var(--shadow-light);
+}
+
+.neu-sm {
+  background: var(--surface);
+  box-shadow:
+    var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light);
+}
+
+.neu-lg {
+  background: var(--surface);
+  box-shadow:
+    var(--depth-lg) var(--depth-lg) var(--blur-lg) var(--shadow-dark),
+    calc(var(--depth-lg) * -1) calc(var(--depth-lg) * -1) var(--blur-lg)
+      var(--shadow-light);
+}
+
+/* Pressed — inputs, active tabs, progress tracks, selected states. */
+.neu-inset {
+  background: var(--surface);
+  box-shadow:
+    inset var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    inset calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light);
+}
+
+.neu-inset-lg {
+  background: var(--surface);
+  box-shadow:
+    inset var(--depth) var(--depth) var(--blur) var(--shadow-dark),
+    inset calc(var(--depth) * -1) calc(var(--depth) * -1) var(--blur)
+      var(--shadow-light);
+}
+
+/* Flat — no extrusion, used for nested surfaces where stacked shadows muddy. */
+.neu-flat {
+  background: var(--surface-raised);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Interactive: raised at rest, lifts on hover, presses in on click. */
+.neu-interactive {
+  background: var(--surface);
+  box-shadow:
+    var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light);
+  transition:
+    box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 160ms ease;
+}
+
+.neu-interactive:hover {
+  box-shadow:
+    var(--depth) var(--depth) var(--blur) var(--shadow-dark),
+    calc(var(--depth) * -1) calc(var(--depth) * -1) var(--blur) var(--shadow-light);
+  transform: translateY(-2px);
+}
+
+.neu-interactive:active {
+  box-shadow:
+    inset var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    inset calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light);
+  transform: translateY(0);
+}
+
+.neu-interactive:disabled,
+.neu-interactive[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Pressed-and-held, for toggles and the active nav item. */
+.neu-pressed {
+  background: var(--surface);
+  box-shadow:
+    inset var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    inset calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light);
+}
+
+/* ==========================================================================
+   Accent treatments — the "futuristic" layer over the soft base
+   ========================================================================== */
+
+.neu-accent {
+  background: linear-gradient(
+    135deg,
+    var(--accent-soft) 0%,
+    var(--accent) 50%,
+    var(--accent-strong) 100%
+  );
+  color: var(--accent-contrast);
+  box-shadow:
+    var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition:
+    box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 220ms ease;
+}
+
+.neu-accent:hover {
+  filter: brightness(1.06);
+  transform: translateY(-2px);
+  box-shadow:
+    var(--depth) var(--depth) var(--blur) var(--shadow-dark),
+    calc(var(--depth) * -1) calc(var(--depth) * -1) var(--blur) var(--shadow-light),
+    0 0 26px color-mix(in srgb, var(--accent) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.neu-accent:active {
+  transform: translateY(0);
+  filter: brightness(0.97);
+}
+
+.neu-accent:disabled,
+.neu-accent[aria-disabled="true"] {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Glass — for overlays and the sticky topbar, where full opacity feels heavy. */
+.neu-glass {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid color-mix(in srgb, var(--shadow-light) 45%, transparent);
+}
+
+.text-gradient {
+  background: linear-gradient(
+    120deg,
+    var(--accent-strong),
+    var(--accent),
+    var(--secondary)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glow-accent {
+  box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+/* ==========================================================================
+   Focus — visible without breaking the soft aesthetic
+   ========================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-neu-sm);
+}
+
+.neu-input:focus-within {
+  box-shadow:
+    inset var(--depth-sm) var(--depth-sm) var(--blur-sm) var(--shadow-dark),
+    inset calc(var(--depth-sm) * -1) calc(var(--depth-sm) * -1) var(--blur-sm)
+      var(--shadow-light),
+    0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+input,
+textarea,
+select {
+  color: var(--text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Chrome paints its own washed-out background over autofilled inputs. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ==========================================================================
+   Animation
+   ========================================================================== */
+
+@keyframes lumina-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lumina-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lumina-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes lumina-shimmer {
+  0% {
+    background-position: -600px 0;
+  }
+  100% {
+    background-position: 600px 0;
+  }
+}
+
+@keyframes lumina-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes lumina-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-up {
+  animation: lumina-fade-up 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: lumina-fade-in 300ms ease both;
+}
+
+.animate-scale-in {
+  animation: lumina-scale-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-pulse-ring {
+  animation: lumina-pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin-slow {
+  animation: lumina-spin 1s linear infinite;
+}
+
+/* Staggered list entrances — set on containers with many cards. */
+.stagger > * {
+  animation: lumina-fade-up 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 45ms; }
+.stagger > *:nth-child(3) { animation-delay: 90ms; }
+.stagger > *:nth-child(4) { animation-delay: 135ms; }
+.stagger > *:nth-child(5) { animation-delay: 180ms; }
+.stagger > *:nth-child(6) { animation-delay: 225ms; }
+.stagger > *:nth-child(7) { animation-delay: 270ms; }
+.stagger > *:nth-child(8) { animation-delay: 315ms; }
+.stagger > *:nth-child(n + 9) { animation-delay: 360ms; }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-sunken) 25%,
+    var(--surface-raised) 50%,
+    var(--surface-sunken) 75%
+  );
+  background-size: 600px 100%;
+  animation: lumina-shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .neu-interactive:hover,
+  .neu-accent:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Component-specific
+   ========================================================================== */
+
+/* Range inputs (video scrubber, volume) styled as an inset neumorphic track. */
+.neu-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.neu-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  box-shadow:
+    inset 2px 2px 5px var(--shadow-dark),
+    inset -2px -2px 5px var(--shadow-light);
+}
+
+.neu-range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  box-shadow:
+    inset 2px 2px 5px var(--shadow-dark),
+    inset -2px -2px 5px var(--shadow-light);
+}
+
+.neu-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: transform 160ms ease;
+}
+
+.neu-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.neu-range::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Markdown-ish rendering for article lessons and course descriptions. */
+.prose-lumina {
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.prose-lumina h1,
+.prose-lumina h2,
+.prose-lumina h3,
+.prose-lumina h4 {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-top: 1.75em;
+  margin-bottom: 0.6em;
+  line-height: 1.25;
+}
+
+.prose-lumina h1 { font-size: 1.875rem; }
+.prose-lumina h2 { font-size: 1.5rem; }
+.prose-lumina h3 { font-size: 1.25rem; }
+.prose-lumina h4 { font-size: 1.0625rem; }
+
+.prose-lumina > *:first-child {
+  margin-top: 0;
+}
+
+.prose-lumina p {
+  margin-bottom: 1.1em;
+}
+
+.prose-lumina ul,
+.prose-lumina ol {
+  margin: 0 0 1.1em 1.35em;
+}
+
+.prose-lumina ul { list-style: disc; }
+.prose-lumina ol { list-style: decimal; }
+.prose-lumina li { margin-bottom: 0.4em; }
+
+.prose-lumina strong {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.prose-lumina a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose-lumina code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  padding: 0.15em 0.45em;
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  box-shadow:
+    inset 1px 1px 3px var(--shadow-dark),
+    inset -1px -1px 3px var(--shadow-light);
+  color: var(--accent);
+}
+
+.prose-lumina pre {
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-neu-sm);
+  overflow-x: auto;
+  margin-bottom: 1.2em;
+  background: var(--surface-sunken);
+  box-shadow:
+    inset 3px 3px 8px var(--shadow-dark),
+    inset -3px -3px 8px var(--shadow-light);
+}
+
+.prose-lumina pre code {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+.prose-lumina blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0 0 1.2em 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.prose-lumina hr {
+  border: none;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 2em 0;
+}
+
+/* Clamp helpers for card copy. */
+.line-clamp-1,
+.line-clamp-2,
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-1 { -webkit-line-clamp: 1; }
+.line-clamp-2 { -webkit-line-clamp: 2; }
+.line-clamp-3 { -webkit-line-clamp: 3; }
+
+/* Print — certificates are the one thing people actually print. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  .neu,
+  .neu-sm,
+  .neu-lg,
+  .neu-interactive {
+    box-shadow: none !important;
+    border: 1px solid #d5d9e0 !important;
+  }
+}

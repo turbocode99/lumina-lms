@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# Lumina LMS — Docker Compose
+#
+# Two ways to run:
+#
+#   Default (SQLite, zero config beyond a secret):
+#     docker compose up -d
+#
+#   With PostgreSQL (for multi-instance or larger deployments):
+#     1. Set `provider = "postgresql"` in prisma/schema.prisma
+#     2. docker compose --profile postgres up -d
+# ---------------------------------------------------------------------------
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lumina-lms:latest
+    container_name: lumina-lms
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # SQLite lives on the `data` volume so it survives container replacement.
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/lumina.db}
+
+      # REQUIRED. Generate with: openssl rand -base64 32
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set — generate one with `openssl rand -base64 32`}
+
+      AUTH_SESSION_MAX_AGE: ${AUTH_SESSION_MAX_AGE:-604800}
+      AUTH_ALLOW_SELF_REGISTRATION: ${AUTH_ALLOW_SELF_REGISTRATION:-true}
+      AUTH_ALLOWED_EMAIL_DOMAINS: ${AUTH_ALLOWED_EMAIL_DOMAINS:-}
+
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /app/storage
+      STORAGE_MAX_UPLOAD_MB: ${STORAGE_MAX_UPLOAD_MB:-512}
+
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Lumina}
+      NEXT_PUBLIC_APP_TAGLINE: ${NEXT_PUBLIC_APP_TAGLINE:-Learning, elevated.}
+      NEXT_PUBLIC_ORG_NAME: ${NEXT_PUBLIC_ORG_NAME:-Your Organization}
+
+      SEED_ON_START: ${SEED_ON_START:-false}
+      NODE_ENV: production
+    volumes:
+      - lumina-data:/app/data
+      - lumina-storage:/app/storage
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # Optional PostgreSQL. Only started with `--profile postgres`.
+  postgres:
+    image: postgres:17-alpine
+    container_name: lumina-postgres
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lumina}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-lumina}
+    volumes:
+      - lumina-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lumina}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  lumina-data:
+  lumina-storage:
+  lumina-postgres:

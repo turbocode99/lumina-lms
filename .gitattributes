@@ -1,0 +1,26 @@
+# Normalise line endings so the repo is identical regardless of contributor OS.
+* text=auto eol=lf
+
+# Shell scripts MUST keep LF. A CRLF shebang makes Linux report
+# "no such file or directory" when the container starts, which is a confusing
+# failure to debug.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+
+# Binary — never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.mp4 binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
