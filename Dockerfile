@@ -25,14 +25,19 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Prisma needs a DATABASE_URL present at generate time, and Next.js evaluates
-# env at build time for anything NEXT_PUBLIC_. Real values are injected at run.
+# Prisma needs a DATABASE_URL present at generate time. The real one is injected
+# at runtime; this only has to satisfy schema validation.
 ENV DATABASE_URL="file:./build.db"
-ENV AUTH_SECRET="build-time-placeholder-not-used-at-runtime"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npx prisma generate
-RUN npm run build
+
+# AUTH_SECRET is scoped to this one RUN rather than set as ENV, so no secret-like
+# value is baked into an image layer. It is freshly random per build and never
+# used to sign anything — the runtime secret comes from the environment. A fixed
+# placeholder would be rejected by the guard in src/lib/auth.ts, which is the
+# point of that guard.
+RUN AUTH_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')" npm run build
 
 
 # --- Runtime ---------------------------------------------------------------

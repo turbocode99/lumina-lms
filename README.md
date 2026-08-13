@@ -51,33 +51,40 @@ git clone https://github.com/turbocode99/lumina-lms.git
 cd lumina-lms && npm install
 ```
 
-Create your `.env` from the template:
-
-```bash
-cp .env.example .env
-```
-
-Generate a session secret and paste it into `.env` as `AUTH_SECRET`:
-
-```bash
-openssl rand -base64 32
-```
-
-Set up the database and load the demo dataset:
-
 ```bash
 npm run setup
 ```
-
-Start the dev server:
 
 ```bash
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> and sign in as `admin@example.com` / `Password123!`.
 
-> **Starting from empty instead?** Skip the seed (`npm run db:push` only). The first account to register is automatically made an administrator, so you can set up a real organization without touching the database.
+That's it — four commands, no manual file editing. `npm run setup` creates `.env` from the template, generates a real random `AUTH_SECRET`, applies the schema, and loads the demo dataset. It's safe to re-run: an existing `.env` is never overwritten, and only a placeholder secret gets replaced.
+
+> **Want an empty instance instead of demo data?** Use `npm run setup:empty`. The first account to register is automatically made an administrator, so you can stand up a real organization without touching the database.
+
+<details>
+<summary>Prefer to do it by hand?</summary>
+
+```bash
+cp .env.example .env
+```
+
+Then generate a secret and set it as `AUTH_SECRET` in `.env`:
+
+```bash
+openssl rand -base64 32
+```
+
+```bash
+npx prisma generate && npx prisma db push && npm run db:seed
+```
+
+The app refuses to start if `AUTH_SECRET` is still one of the placeholder values from the templates — every session would otherwise be forgeable by anyone who has read the source.
+
+</details>
 
 ---
 
@@ -368,7 +375,8 @@ lumina-lms/
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Production build (runs `prisma generate` first) |
 | `npm start` | Serve the production build |
-| `npm run setup` | `generate` + `db push` + `seed` — one-shot local setup |
+| `npm run setup` | One-shot local setup: provisions `.env`, mints `AUTH_SECRET`, applies schema, seeds. Idempotent |
+| `npm run setup:empty` | Same, without the demo data — first registered account becomes admin |
 | `npm run db:push` | Sync schema without a migration (dev) |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:seed` | Load the demo dataset (idempotent) |
@@ -383,7 +391,7 @@ lumina-lms/
 
 Worth knowing before you put this in front of real people:
 
-- **`AUTH_SECRET` must be a real random value.** Everything about session integrity rests on it. `openssl rand -base64 32`. Never commit it.
+- **`AUTH_SECRET` must be a real random value.** Everything about session integrity rests on it. `npm run setup` generates one; otherwise use `openssl rand -base64 32`. Never commit it. The app **refuses to start** if the secret is still a template placeholder, because those strings are public and long enough to pass a naive length check — that combination would otherwise let anyone forge a session.
 - **Passwords are bcrypt at cost 12.** Login returns an identical error for unknown-email and wrong-password, and burns comparable time on both, so the form can't be used to enumerate accounts.
 - **Quizzes are graded server-side.** `QuizOption.isCorrect` is explicitly excluded from the player's query — the answer key is not in the page source.
 - **Storage keys are re-validated on every read.** Path traversal, absolute paths, and anything resolving outside the storage root are rejected before touching the filesystem.

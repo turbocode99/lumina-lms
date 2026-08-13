@@ -30,13 +30,41 @@ function sessionMaxAge(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_AGE;
 }
 
+/**
+ * Placeholder values that ship in the templates. They are long enough to pass a
+ * naive length check, so they are rejected by name — otherwise a public, shared
+ * string could silently become a real production signing key.
+ */
+const PLACEHOLDER_SECRETS = new Set([
+  "replace-me-with-a-long-random-string-at-least-32-chars",
+  "build-time-placeholder-not-used-at-runtime",
+  "changeme",
+  "secret",
+]);
+
 function secretKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
+
   if (!secret || secret.length < 16) {
     throw new Error(
-      "AUTH_SECRET is missing or too short. Generate one with `openssl rand -base64 32` and set it in .env"
+      "AUTH_SECRET is missing or too short. Run `npm run setup` to generate one, " +
+        "or set it yourself with `openssl rand -base64 32`."
     );
   }
+
+  // The dev default is tolerated locally so `npm run dev` works out of the box,
+  // but never in production.
+  if (
+    PLACEHOLDER_SECRETS.has(secret) ||
+    (process.env.NODE_ENV === "production" && secret.startsWith("dev-only-secret"))
+  ) {
+    throw new Error(
+      "AUTH_SECRET is still a placeholder value. Every session in this deployment " +
+        "would be forgeable by anyone who has read the source. Generate a real one " +
+        "with `openssl rand -base64 32` and set it in your environment."
+    );
+  }
+
   return new TextEncoder().encode(secret);
 }
 

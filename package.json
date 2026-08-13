@@ -22,7 +22,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
-    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts"
+    "setup": "node scripts/setup.mjs",
+    "setup:empty": "node scripts/setup.mjs --no-seed"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",
