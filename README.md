@@ -399,6 +399,7 @@ lumina-lms/
 | `npm start` | Serve the production build (assembles the standalone bundle first) |
 | `npm run setup` | One-shot local setup: provisions `.env`, mints `AUTH_SECRET`, applies schema, seeds. Idempotent |
 | `npm run setup:empty` | Same, without the demo data — first registered account becomes admin |
+| `npm run set-admin` | Change an administrator's email, password, or name from the CLI |
 | `npm run db:push` | Sync schema without a migration (dev) |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:seed` | Load the demo dataset (idempotent) |
@@ -421,6 +422,23 @@ Worth knowing before you put this in front of real people:
 - **Login redirects are same-origin only,** so the `?next=` parameter can't be turned into an open redirect.
 - **Self-registration is on by default** for easy evaluation. For a real deployment, either set `AUTH_ALLOW_SELF_REGISTRATION=false` and provision from the admin console, or restrict `AUTH_ALLOWED_EMAIL_DOMAINS` to your corporate domain.
 - **`robots.txt` is not the access control.** The app sets `noindex`, but the real protection is that every route requires a session.
+
+### Recovering admin access
+
+If the admin email is wrong or nobody can sign in, there is no way to fix it through a UI that requires signing in first. With shell access:
+
+```bash
+npm run set-admin -- --email you@company.com --password 'a-real-password'
+```
+
+Add `--from old@example.com` when there is more than one administrator, and `--name 'Full Name'` to set the display name. The script only changes an existing account — it promotes it to `ADMIN` and reactivates it if needed, and never echoes the password. Existing sessions keep working, since they are signed with `AUTH_SECRET` rather than the password.
+
+### A note on relative SQLite paths
+
+`DATABASE_URL="file:./dev.db"` is resolved by Prisma against the **schema directory**, not the working directory. That matters in two places, and both are handled:
+
+- `npm start` rewrites a relative path to an absolute one anchored at the project's `prisma/`. Without this, the standalone bundle carries its own `prisma/` and the server reads a database frozen at build time — CLI changes invisible to the app, app writes discarded by the next build, no error anywhere.
+- The container entrypoint **refuses to start** on a relative path, since it would resolve inside the image instead of the mounted volume and quietly lose everything on restart. Use an absolute path such as `file:/app/data/lumina.db` (the compose default).
 
 ---
 

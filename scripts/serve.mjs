@@ -24,8 +24,8 @@
  */
 
 import { spawn } from "node:child_process";
-import { cpSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnvFile } from "./lib/env.mjs";
@@ -87,6 +87,43 @@ if (existsSync(publicSrc)) {
   cpSync(publicSrc, join(standalone, "public"), { recursive: true });
 }
 
+/* --- Anchor a relative SQLite database to the project ---------------------- */
+
+/**
+ * Prisma resolves a relative SQLite path against the schema directory. The
+ * standalone bundle contains its own copy of `prisma/`, so `file:./dev.db` inside
+ * it means `.next/standalone/prisma/dev.db` — a different file from the
+ * `prisma/dev.db` that `db:seed` and `set-admin` write to.
+ *
+ * Worse, the build traces the database as a dependency and copies it into the
+ * bundle, so the server comes up on a snapshot frozen at build time: CLI changes
+ * are invisible to the app, and anything the app writes is discarded by the next
+ * build. Nothing errors, which is what makes it nasty.
+ *
+ * Rewriting the URL to an absolute path pins both to the same file. Absolute
+ * URLs (including the container's `file:/app/data/lumina.db`) pass through
+ * untouched.
+ */
+const databaseUrl = process.env.DATABASE_URL;
+let resolvedDatabase = null;
+
+if (databaseUrl?.startsWith("file:")) {
+  const rawPath = databaseUrl.slice("file:".length);
+
+  if (!isAbsolute(rawPath)) {
+    const absolute = resolve(join(root, "prisma"), rawPath);
+    process.env.DATABASE_URL = `file:${absolute}`;
+    resolvedDatabase = absolute;
+
+    // Remove the traced copy so a future change here cannot silently fall back
+    // to a stale bundled database.
+    const bundledName = rawPath.replace(/^\.\//, "");
+    for (const suffix of ["", "-journal", "-wal", "-shm"]) {
+      rmSync(join(standalone, "prisma", `${bundledName}${suffix}`), { force: true });
+    }
+  }
+}
+
 /* --- Run ------------------------------------------------------------------ */
 
 // 0.0.0.0 binds IPv4 only. That is right for containers and LAN access, but on
@@ -112,6 +149,10 @@ if (moved) {
     `  ${c.yellow}Port ${requested} was already in use, so ${port} was used instead.${c.reset}\n` +
       `  ${c.dim}Pass --strict-port to fail instead of moving.${c.reset}\n`
   );
+}
+
+if (resolvedDatabase) {
+  console.log(`  ${c.dim}database  ${resolvedDatabase}${c.reset}`);
 }
 
 console.log(
