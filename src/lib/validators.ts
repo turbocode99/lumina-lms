@@ -72,6 +72,12 @@ export const courseSchema = z.object({
   audience: z.string().max(4000).optional().or(z.literal("")),
   tags: z.string().max(600).optional().or(z.literal("")),
   isMandatory: z.boolean().default(false),
+  /**
+   * Only submitted by the create form. The edit page has a dedicated Media tab,
+   * so `updateCourseAction` ignores this field rather than letting an absent value
+   * silently clear an existing thumbnail.
+   */
+  thumbnailUrl: z.string().trim().max(2000).optional().or(z.literal("")),
 });
 
 export const courseStatusSchema = z.object({

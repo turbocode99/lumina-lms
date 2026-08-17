@@ -206,9 +206,19 @@ function EditForm({ user, onDone }: { user: ManagedUser; onDone: () => void }) {
   );
 }
 
-export function UserManager({ users }: { users: ManagedUser[] }) {
+export function UserManager({
+  users,
+  initialRole = "",
+  initialStatus = "",
+}: {
+  users: ManagedUser[];
+  /** Seeded from the URL so admin tiles can deep link to a filtered view. */
+  initialRole?: string;
+  initialStatus?: string;
+}) {
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState(initialRole);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
 
@@ -216,6 +226,8 @@ export function UserManager({ users }: { users: ManagedUser[] }) {
     const needle = query.trim().toLowerCase();
     return users.filter((user) => {
       if (roleFilter && user.role !== roleFilter) return false;
+      if (statusFilter === "active" && !user.isActive) return false;
+      if (statusFilter === "inactive" && user.isActive) return false;
       if (!needle) return true;
       return (
         user.name.toLowerCase().includes(needle) ||
@@ -224,7 +236,7 @@ export function UserManager({ users }: { users: ManagedUser[] }) {
         (user.title ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [users, query, roleFilter]);
+  }, [users, query, roleFilter, statusFilter]);
 
   return (
     <div className="space-y-5">
@@ -260,15 +272,45 @@ export function UserManager({ users }: { users: ManagedUser[] }) {
           </select>
         </div>
 
+        <div className="neu-inset neu-input flex items-center rounded-2xl px-4 py-3">
+          <label htmlFor="status-filter" className="sr-only">
+            Filter by status
+          </label>
+          <select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="cursor-pointer bg-transparent text-sm outline-none [&>option]:bg-[var(--surface)]"
+          >
+            <option value="">Any status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+
         <Button onClick={() => setInviting(true)} variant="primary">
           <UserPlus className="h-4 w-4" />
           Add person
         </Button>
       </div>
 
-      <p className="text-sm text-[var(--text-muted)]">
-        {filtered.length} of {users.length} people
-      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm text-[var(--text-muted)]">
+          {filtered.length} of {users.length} people
+        </p>
+        {(roleFilter || statusFilter || query) && (
+          <Button
+            size="sm"
+            onClick={() => {
+              setRoleFilter("");
+              setStatusFilter("");
+              setQuery("");
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
 
       {/* Table */}
       <Card padded={false} className="overflow-hidden">

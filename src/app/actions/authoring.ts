@@ -56,6 +56,7 @@ export async function createCourseAction(
     audience: formData.get("audience") ?? "",
     tags: formData.get("tags") ?? "",
     isMandatory: formData.get("isMandatory") === "on",
+    thumbnailUrl: formData.get("thumbnailUrl") ?? "",
   });
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
@@ -81,6 +82,7 @@ export async function createCourseAction(
       audience: stringifyStringArray(linesToArray(parsed.data.audience)),
       tags: stringifyStringArray(csvToArray(parsed.data.tags)),
       isMandatory,
+      thumbnailUrl: parsed.data.thumbnailUrl || null,
       status: "DRAFT",
     },
     select: { id: true },
@@ -118,6 +120,8 @@ export async function updateCourseAction(
     audience: formData.get("audience") ?? "",
     tags: formData.get("tags") ?? "",
     isMandatory: formData.get("isMandatory") === "on",
+    // Not submitted by the edit form — the Media tab owns the thumbnail.
+    thumbnailUrl: "",
   });
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 

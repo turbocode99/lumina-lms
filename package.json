@@ -24,7 +24,8 @@
     "db:reset": "prisma migrate reset --force",
     "setup": "node scripts/setup.mjs",
     "setup:empty": "node scripts/setup.mjs --no-seed",
-    "set-admin": "node scripts/set-admin.mjs"
+    "set-admin": "node scripts/set-admin.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

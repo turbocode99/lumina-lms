@@ -400,6 +400,7 @@ lumina-lms/
 | `npm run setup` | One-shot local setup: provisions `.env`, mints `AUTH_SECRET`, applies schema, seeds. Idempotent |
 | `npm run setup:empty` | Same, without the demo data — first registered account becomes admin |
 | `npm run set-admin` | Change an administrator's email, password, or name from the CLI |
+| `npm run smoke` | End-to-end check of every route, guard, and media path against a running server |
 | `npm run db:push` | Sync schema without a migration (dev) |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:seed` | Load the demo dataset (idempotent) |
@@ -432,6 +433,20 @@ npm run set-admin -- --email you@company.com --password 'a-real-password'
 ```
 
 Add `--from old@example.com` when there is more than one administrator, and `--name 'Full Name'` to set the display name. The script only changes an existing account — it promotes it to `ADMIN` and reactivates it if needed, and never echoes the password. Existing sessions keep working, since they are signed with `AUTH_SECRET` rather than the password.
+
+If you change the admin email, also set `SEED_ADMIN_EMAIL` in `.env`. The seed upserts on that address, so without it a reseed recreates the default admin as a *second* administrator alongside yours. `SEED_ADMIN_PASSWORD` pins the password the same way.
+
+### Demo media
+
+`demo-assets/` holds a generated media set — one thumbnail per seeded course, one short video per video lesson, and PDFs for the downloadable-resource lessons. `npm run db:seed` copies it into your storage directory and points the seeded records at it, so the demo library has working thumbnails, playable video, and real downloads on a fresh clone with no extra tooling.
+
+Three things worth knowing:
+
+- **It routes through storage, not `public/`.** Anything in `public/` is world-readable, which would quietly contradict the rule that lesson content requires a session. Copying into storage means the demo set is served by `/api/media/*` behind the same auth check as an instructor's own uploads.
+- **The clips are 12 seconds, and the seeded durations say so.** Video lessons store the real length of the attached file rather than an aspirational figure, because showing "18m" next to a 12-second clip is visibly wrong and the completion threshold is a ratio of actual playback. Seeded courses therefore run 6–31 minutes rather than hours.
+- **Everything is drawn from scratch** — gradients and text rendered by ffmpeg, and hand-built single-page PDFs. There is no third-party footage or imagery, and the generator is not a project dependency (it lives outside the repo, so `npm install` stays lean).
+
+Delete `demo-assets/` if you don't want any of it; the seed reports what is missing and carries on.
 
 ### A note on relative SQLite paths
 

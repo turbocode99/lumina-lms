@@ -28,8 +28,20 @@ const COURSE_SELECT = {
   category: { select: { name: true, color: true } },
 } as const;
 
-export default async function MyLearningPage() {
+const TABS = ["all", "in-progress", "not-started", "completed"] as const;
+
+export default async function MyLearningPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const user = await requireUser("/my-learning");
+
+  // Tab selection lives in the URL so the dashboard and profile tiles can deep
+  // link straight to "in progress" or "completed" rather than dropping the
+  // learner on "all" and making them find it.
+  const { tab } = await searchParams;
+  const activeTab = TABS.includes(tab as (typeof TABS)[number]) ? tab : "all";
 
   const enrollments = await db.enrollment.findMany({
     where: { userId: user.id },
@@ -80,6 +92,7 @@ export default async function MyLearningPage() {
       </header>
 
       <Tabs
+        defaultTab={activeTab}
         items={[
           {
             id: "all",

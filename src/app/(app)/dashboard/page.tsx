@@ -222,24 +222,32 @@ export default async function DashboardPage() {
           label="Enrolled"
           value={enrollments.length}
           icon={<BookOpen className="h-5 w-5" />}
+          href="/my-learning"
+          hint="View all courses"
         />
         <StatCard
           label="In progress"
           value={inProgress.length}
           icon={<TrendingUp className="h-5 w-5" />}
           accent="var(--info)"
+          href="/my-learning?tab=in-progress"
+          hint="Resume learning"
         />
         <StatCard
           label="Completed"
           value={completed.length}
           icon={<GraduationCap className="h-5 w-5" />}
           accent="var(--success)"
+          href="/my-learning?tab=completed"
+          hint="View completed"
         />
         <StatCard
           label="Certificates"
           value={certificateCount}
           icon={<Award className="h-5 w-5" />}
           accent="var(--warning)"
+          href="/certificates"
+          hint="View certificates"
         />
       </section>
 

@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox, Input, Select, Textarea } from "@/components/ui/Field";
 import { COURSE_LEVELS } from "@/lib/enums";
 
+import { UploadField } from "./UploadField";
+
 export interface CourseFormValues {
   id?: string;
   title: string;
@@ -178,6 +180,17 @@ export function CourseForm({
         hint="Comma separated. Tags feed the catalog search."
         error={state.errors?.tags}
       />
+
+      {/* Create only. On the edit page the Media tab owns the thumbnail, so
+          showing a second control here would let two fields fight over it. */}
+      {mode === "create" && (
+        <UploadField
+          name="thumbnailUrl"
+          label="Thumbnail"
+          kind="image"
+          hint="Optional — 16:9, around 1280×720. You can add or change it later from the course's Media tab."
+        />
+      )}
 
       {canSetMandatory && (
         <div className="neu-inset rounded-2xl p-5">

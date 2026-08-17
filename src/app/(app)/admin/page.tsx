@@ -21,11 +21,32 @@ import { Card, CardTitle, StatCard } from "@/components/ui/Card";
 import { Progress } from "@/components/ui/Progress";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/rbac";
-import { formatRelative, truncate } from "@/lib/utils";
+import { cn, formatRelative, truncate } from "@/lib/utils";
 import { luminaConfig } from "~/lumina.config";
 
 export const metadata: Metadata = { title: "Admin overview" };
 export const dynamic = "force-dynamic";
+
+/**
+ * Maps an activity-log entry to the page showing that record. Returns null when
+ * there is nowhere sensible to go, so the row renders as static text rather than
+ * a link that lands on a 404.
+ */
+function activityHref(entity: string, entityId: string | null): string | null {
+  if (!entityId) return null;
+  switch (entity) {
+    case "course":
+      return `/instructor/courses/${entityId}`;
+    case "user":
+      return "/admin/users";
+    case "path":
+      return "/admin/paths";
+    case "assignment":
+      return "/admin/assignments";
+    default:
+      return null;
+  }
+}
 
 export default async function AdminOverviewPage() {
   await requireAdmin("/admin");
@@ -137,6 +158,8 @@ export default async function AdminOverviewPage() {
           value={userCount}
           icon={<Users className="h-5 w-5" />}
           trend={{ value: `${activeUserCount} active` }}
+          href="/admin/users"
+          hint="Manage people"
         />
         <StatCard
           label="Courses"
@@ -144,6 +167,8 @@ export default async function AdminOverviewPage() {
           icon={<BookOpen className="h-5 w-5" />}
           accent="var(--info)"
           trend={{ value: `${publishedCount} published` }}
+          href="/admin/courses"
+          hint="Moderate courses"
         />
         <StatCard
           label="Enrollments"
@@ -151,19 +176,26 @@ export default async function AdminOverviewPage() {
           icon={<TrendingUp className="h-5 w-5" />}
           accent="var(--secondary)"
           trend={{ value: `${completionCount} completed` }}
+          href="/admin/courses?status=PUBLISHED"
+          hint="View published courses"
         />
         <StatCard
           label="Certificates"
           value={certificateCount}
           icon={<Award className="h-5 w-5" />}
           accent="var(--warning)"
+          href="/admin/certificates"
+          hint="View register"
         />
       </div>
 
       {/* Compliance strip */}
       {luminaConfig.features.mandatoryTraining && (
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Link
+            href="/admin/assignments?status=open"
+            className="neu-interactive group rounded-[var(--radius-neu)] p-6"
+          >
             <div className="flex items-center gap-4">
               <span className="neu-inset flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[var(--accent)]">
                 <ClipboardCheck className="h-5 w-5" />
@@ -176,15 +208,19 @@ export default async function AdminOverviewPage() {
                   Open required assignments
                 </p>
               </div>
+              <span className="ml-auto shrink-0 text-xs font-semibold text-[var(--accent)] opacity-0 transition-opacity group-hover:opacity-100">
+                Review →
+              </span>
             </div>
-          </Card>
+          </Link>
 
-          <Card
-            className={
-              overdueAssignments > 0
-                ? "!bg-[color-mix(in_srgb,var(--danger)_8%,var(--surface))]"
-                : undefined
-            }
+          <Link
+            href="/admin/assignments?status=overdue"
+            className={cn(
+              "neu-interactive group rounded-[var(--radius-neu)] p-6",
+              overdueAssignments > 0 &&
+                "!bg-[color-mix(in_srgb,var(--danger)_8%,var(--surface))]"
+            )}
           >
             <div className="flex items-center gap-4">
               <span
@@ -202,18 +238,22 @@ export default async function AdminOverviewPage() {
                 </p>
                 <p className="text-xs text-[var(--text-muted)]">Overdue</p>
               </div>
-              {overdueAssignments > 0 && (
-                <Link
-                  href="/admin/assignments"
-                  className="ml-auto shrink-0 text-xs font-semibold text-[var(--danger)] hover:underline"
-                >
-                  Review
-                </Link>
-              )}
+              <span
+                className="ml-auto shrink-0 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100"
+                style={{
+                  color:
+                    overdueAssignments > 0 ? "var(--danger)" : "var(--accent)",
+                }}
+              >
+                Review →
+              </span>
             </div>
-          </Card>
+          </Link>
 
-          <Card>
+          <Link
+            href="/admin/courses?status=PUBLISHED"
+            className="neu-interactive group rounded-[var(--radius-neu)] p-6"
+          >
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Overall completion rate
             </p>
@@ -221,7 +261,10 @@ export default async function AdminOverviewPage() {
               {completionRate}%
             </p>
             <Progress value={completionRate} size="sm" />
-          </Card>
+            <span className="mt-3 flex items-center gap-1 text-xs font-semibold text-[var(--accent)] opacity-0 transition-opacity group-hover:opacity-100">
+              Browse courses →
+            </span>
+          </Link>
         </div>
       )}
 
@@ -269,27 +312,48 @@ export default async function AdminOverviewPage() {
               No activity recorded yet.
             </p>
           ) : (
-            <ul className="space-y-3">
-              {recentActivity.map((entry) => (
-                <li key={entry.id} className="flex items-start gap-3">
-                  <Avatar
-                    name={entry.user.name}
-                    src={entry.user.avatarUrl}
-                    size="sm"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[var(--text-primary)]">
-                      <span className="font-medium">{entry.user.name}</span>{" "}
-                      <span className="text-[var(--text-muted)]">
-                        {entry.action.replace(/[._]/g, " ")}
+            <ul className="space-y-1">
+              {recentActivity.map((entry) => {
+                // Resolve each log line to the record it is about, so the feed is
+                // a way into the data rather than a read-only ticker.
+                const target = activityHref(entry.entity, entry.entityId);
+
+                const row = (
+                  <>
+                    <Avatar
+                      name={entry.user.name}
+                      src={entry.user.avatarUrl}
+                      size="sm"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm text-[var(--text-primary)]">
+                        <span className="font-medium">{entry.user.name}</span>{" "}
+                        <span className="text-[var(--text-muted)]">
+                          {entry.action.replace(/[._]/g, " ")}
+                        </span>
                       </span>
-                    </p>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {formatRelative(entry.createdAt)}
-                    </p>
-                  </div>
-                </li>
-              ))}
+                      <span className="block text-xs text-[var(--text-muted)]">
+                        {formatRelative(entry.createdAt)}
+                      </span>
+                    </span>
+                  </>
+                );
+
+                return (
+                  <li key={entry.id}>
+                    {target ? (
+                      <Link
+                        href={target}
+                        className="flex items-start gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-[var(--surface-raised)]"
+                      >
+                        {row}
+                      </Link>
+                    ) : (
+                      <div className="flex items-start gap-3 px-2 py-2">{row}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

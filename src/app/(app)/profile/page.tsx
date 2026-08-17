@@ -78,18 +78,24 @@ export default async function ProfilePage() {
           label="Enrolled"
           value={enrollmentCount}
           icon={<BookOpen className="h-5 w-5" />}
+          href="/my-learning"
+          hint="View all courses"
         />
         <StatCard
           label="Completed"
           value={completedCount}
           icon={<GraduationCap className="h-5 w-5" />}
           accent="var(--success)"
+          href="/my-learning?tab=completed"
+          hint="View completed"
         />
         <StatCard
           label="Certificates"
           value={certificateCount}
           icon={<Award className="h-5 w-5" />}
           accent="var(--warning)"
+          href="/certificates"
+          hint="View certificates"
         />
       </div>
 

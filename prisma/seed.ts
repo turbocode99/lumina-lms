@@ -7,6 +7,9 @@
  *   npm run db:seed
  */
 
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -16,6 +19,23 @@ const db = new PrismaClient();
 
 const DEFAULT_PASSWORD = "Password123!";
 
+/**
+ * The seeded administrator's identity is configurable.
+ *
+ * Without this, re-running the seed after changing the admin email recreates the
+ * default admin as a *second* administrator, because the upsert keys on an email
+ * that no longer exists. Setting SEED_ADMIN_EMAIL (and optionally
+ * SEED_ADMIN_PASSWORD) in .env pins the identity so a reseed preserves it rather
+ * than quietly forking it.
+ */
+const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@example.com")
+  .trim()
+  .toLowerCase();
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || DEFAULT_PASSWORD;
+
+/** Length of every generated demo clip. Keep in step with the media generator. */
+const DEMO_VIDEO_SECONDS = 12;
+
 function slugify(input: string): string {
   return input
     .toLowerCase()
@@ -23,6 +43,54 @@ function slugify(input: string): string {
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Demo media                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Course thumbnails, lesson videos, and downloadable resources ship in
+ * `demo-assets/` and are copied into the configured storage directory on seed.
+ *
+ * They route through storage rather than `public/` on purpose: anything in
+ * `public/` is world-readable, which would quietly contradict the rule that lesson
+ * content requires a session. Copying them in means the demo set is served by
+ * `/api/media/*` behind the same auth check as an instructor's own uploads.
+ */
+const ASSET_ROOT = join(__dirname, "..", "demo-assets");
+const STORAGE_ROOT = join(
+  process.cwd(),
+  process.env.STORAGE_LOCAL_DIR?.replace(/^\.\//, "") || "storage"
+);
+
+let assetsInstalled = 0;
+let assetsMissing = 0;
+
+/**
+ * Copies one demo asset into storage and returns the URL to store on the record.
+ * Returns null when the asset is absent, so a checkout without the media still
+ * seeds cleanly instead of pointing lessons at files that do not exist.
+ */
+function installAsset(
+  sourceDir: string,
+  filename: string,
+  storageFolder: "image" | "video" | "resource"
+): string | null {
+  const source = join(ASSET_ROOT, sourceDir, filename);
+  if (!existsSync(source)) {
+    assetsMissing += 1;
+    return null;
+  }
+
+  const target = join(STORAGE_ROOT, storageFolder, filename);
+  mkdirSync(dirname(target), { recursive: true });
+  // Overwrite each run so regenerated assets replace older copies.
+  copyFileSync(source, target);
+  assetsInstalled += 1;
+
+  // Matches LocalStorageDriver.url(): /api/media/<key>.
+  return `/api/media/${storageFolder}/${encodeURIComponent(filename)}`;
 }
 
 function serial(): string {
@@ -36,6 +104,10 @@ async function main() {
   console.log("→ Seeding Lumina LMS…\n");
 
   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
+  const adminPasswordHash =
+    ADMIN_PASSWORD === DEFAULT_PASSWORD
+      ? passwordHash
+      : await bcrypt.hash(ADMIN_PASSWORD, 12);
 
   /* ---------------------------------------------------------------------- */
   /* People                                                                  */
@@ -43,7 +115,7 @@ async function main() {
 
   const people = [
     {
-      email: "admin@example.com",
+      email: ADMIN_EMAIL,
       name: "Priya Raman",
       role: "ADMIN",
       title: "Head of Learning & Development",
@@ -129,7 +201,9 @@ async function main() {
       create: {
         email: person.email,
         name: person.name,
-        passwordHash,
+        // The administrator can carry its own password via SEED_ADMIN_PASSWORD.
+        passwordHash:
+          person.email === ADMIN_EMAIL ? adminPasswordHash : passwordHash,
         role: person.role,
         title: person.title,
         department: person.department,
@@ -177,6 +251,8 @@ async function main() {
     summary?: string;
     body?: string;
     isPreview?: boolean;
+    /** RESOURCE lessons: filename inside demo-assets/resources. */
+    file?: string;
     questions?: {
       prompt: string;
       type: "SINGLE" | "MULTI" | "TRUE_FALSE";
@@ -207,7 +283,7 @@ async function main() {
       description:
         "A guided tour of how we work: the tools, the rituals, the people, and the unwritten rules nobody thinks to tell you. Built for anyone in their first month, and worth a skim even if you've been here a while.",
       category: "Onboarding",
-      instructor: "admin@example.com",
+      instructor: ADMIN_EMAIL,
       level: "Beginner",
       isMandatory: true,
       objectives: [
@@ -507,6 +583,7 @@ A package that runs code at install time has already executed on your machine an
               title: "Secure coding checklist (PDF)",
               type: "RESOURCE",
               summary: "One-page reference to keep next to your review queue.",
+              file: "secure-coding-checklist.pdf",
             },
           ],
         },
@@ -696,7 +773,7 @@ Reach for a chart when the *shape* of the data carries the message. Reach for te
       description:
         "Annual compliance training covering our code of conduct, anti-harassment policy, data protection obligations, and how to raise a concern. Required for all staff, refreshed yearly.",
       category: "Compliance & Safety",
-      instructor: "admin@example.com",
+      instructor: ADMIN_EMAIL,
       level: "All Levels",
       isMandatory: true,
       objectives: [
@@ -808,7 +885,7 @@ Retaliation against anyone who raises a concern in good faith is itself a seriou
       description:
         "Becoming a manager is a career change, not a promotion. This course covers the shift honestly: the skills that stop being useful, the ones you have to build, and the mistakes almost everyone makes in the first six months.",
       category: "Leadership",
-      instructor: "admin@example.com",
+      instructor: ADMIN_EMAIL,
       level: "Intermediate",
       objectives: [
         "Run 1:1s that surface problems before they become resignations",
@@ -871,6 +948,7 @@ Thirty minutes every week beats an hour every three. Cancelling repeatedly tells
               title: "Management reading list",
               type: "RESOURCE",
               summary: "Books and essays worth your time, with notes on which to read first.",
+              file: "management-reading-list.pdf",
             },
           ],
         },
@@ -937,7 +1015,7 @@ Get on a call when there's genuine disagreement, when the topic is emotionally c
       description:
         "A practical approach to discovery calls and qualification: how to ask questions that uncover real problems, how to tell a genuine opportunity from a pleasant conversation, and how to walk away from a bad fit early.",
       category: "Sales & Marketing",
-      instructor: "admin@example.com",
+      instructor: ADMIN_EMAIL,
       level: "Intermediate",
       objectives: [
         "Run a discovery call that surfaces the problem behind the request",
@@ -1019,6 +1097,7 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
         requirements: JSON.stringify(seed.requirements),
         audience: JSON.stringify(seed.audience),
         tags: JSON.stringify(seed.tags),
+        thumbnailUrl: installAsset("thumbnails", `${slug}.jpg`, "image"),
       },
       select: { id: true },
     });
@@ -1034,7 +1113,28 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
       });
 
       for (const [lessonIndex, lesson] of section.lessons.entries()) {
-        const seconds = (lesson.minutes ?? 0) * 60;
+        // Attach generated media. Video filenames are derived exactly as the
+        // generator derived them, so the two stay in step without a manifest.
+        let contentUrl: string | null = null;
+
+        if (lesson.type === "VIDEO") {
+          const videoName = `${slug}--${slugify(lesson.title)}`.slice(0, 80);
+          contentUrl = installAsset("videos", `${videoName}.mp4`, "video");
+        } else if (lesson.type === "RESOURCE" && lesson.file) {
+          contentUrl = installAsset("resources", lesson.file, "resource");
+        }
+
+        /**
+         * Video lessons report the real length of the attached clip rather than
+         * the editorial `minutes` figure. Showing "18m" beside a 12-second demo
+         * clip would be visibly wrong, and the completion threshold is a ratio of
+         * actual playback, so the stored duration has to match the file.
+         */
+        const seconds =
+          lesson.type === "VIDEO" && contentUrl
+            ? DEMO_VIDEO_SECONDS
+            : (lesson.minutes ?? 0) * 60;
+
         totalSeconds += seconds;
         lessonTotal += 1;
 
@@ -1046,6 +1146,7 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
             order: lessonIndex,
             summary: lesson.summary ?? null,
             contentText: lesson.body ?? null,
+            contentUrl,
             durationSeconds: seconds,
             isPreview: lesson.isPreview ?? false,
           },
@@ -1086,6 +1187,14 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
     courseCount += 1;
   }
   console.log(`  ✓ ${courseCount} courses`);
+  if (assetsInstalled > 0) {
+    console.log(`  ✓ ${assetsInstalled} demo media files installed into storage`);
+  }
+  if (assetsMissing > 0) {
+    console.log(
+      `  ! ${assetsMissing} demo asset(s) missing from demo-assets/ — those lessons have no media`
+    );
+  }
 
   /* ---------------------------------------------------------------------- */
   /* Learning paths                                                          */
@@ -1136,7 +1245,7 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
         description: seed.description,
         color: seed.color,
         isPublished: true,
-        createdById: users["admin@example.com"],
+        createdById: users[ADMIN_EMAIL],
         items: {
           create: seed.courses
             .filter((title) => createdCourses[title])
@@ -1297,7 +1406,7 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
       await db.assignment.create({
         data: {
           userId: learnerId,
-          assignedById: users["admin@example.com"],
+          assignedById: users[ADMIN_EMAIL],
           courseId: complianceId,
           dueAt,
           note: "Annual compliance refresher — required for all staff.",
@@ -1354,10 +1463,19 @@ Sales cycles are long. Reputation compounds faster than pipeline.`,
   }
 
   console.log("\n✓ Seed complete.\n");
-  console.log("  Sign in with any of these — password for all is:", DEFAULT_PASSWORD);
-  console.log("    admin@example.com       (Admin)");
-  console.log("    instructor@example.com  (Instructor)");
-  console.log("    learner@example.com     (Learner)\n");
+  console.log("  Accounts:");
+  console.log(
+    `    ${ADMIN_EMAIL.padEnd(24)}(Admin)` +
+      (ADMIN_PASSWORD === DEFAULT_PASSWORD
+        ? ""
+        : "  — password from SEED_ADMIN_PASSWORD")
+  );
+  console.log(`    ${"instructor@example.com".padEnd(24)}(Instructor)`);
+  console.log(`    ${"learner@example.com".padEnd(24)}(Learner)`);
+  console.log(
+    `\n  Password is "${DEFAULT_PASSWORD}" for every account except the` +
+      ` administrator\n  when SEED_ADMIN_PASSWORD is set.\n`
+  );
 }
 
 main()

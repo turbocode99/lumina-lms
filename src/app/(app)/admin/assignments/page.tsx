@@ -20,11 +20,27 @@ import { luminaConfig } from "~/lumina.config";
 export const metadata: Metadata = { title: "Required training" };
 export const dynamic = "force-dynamic";
 
-export default async function AdminAssignmentsPage() {
+export default async function AdminAssignmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   if (!luminaConfig.features.mandatoryTraining) notFound();
   await requireAdmin("/admin/assignments");
 
   const now = new Date();
+  const { status } = await searchParams;
+
+  // Drives the register below, so the overview tiles can link to a filtered view
+  // instead of dropping an admin into an unfiltered list of everything.
+  const registerWhere =
+    status === "open"
+      ? { completedAt: null }
+      : status === "overdue"
+        ? { completedAt: null, dueAt: { lt: now } }
+        : status === "completed"
+          ? { completedAt: { not: null } }
+          : {};
 
   const [users, courses, paths, assignments, openCount, overdueCount, doneCount] =
     await Promise.all([
@@ -50,6 +66,7 @@ export default async function AdminAssignmentsPage() {
         select: { id: true, title: true },
       }),
       db.assignment.findMany({
+        where: registerWhere,
         orderBy: [{ completedAt: "asc" }, { dueAt: "asc" }],
         take: 150,
         include: {
@@ -96,18 +113,24 @@ export default async function AdminAssignmentsPage() {
           label="Open"
           value={openCount}
           icon={<ClipboardCheck className="h-5 w-5" />}
+          href="/admin/assignments?status=open"
+          hint="Filter register"
         />
         <StatCard
           label="Overdue"
           value={overdueCount}
           icon={<CalendarClock className="h-5 w-5" />}
           accent="var(--danger)"
+          href="/admin/assignments?status=overdue"
+          hint="Filter register"
         />
         <StatCard
           label="Completed"
           value={doneCount}
           icon={<ClipboardCheck className="h-5 w-5" />}
           accent="var(--success)"
+          href="/admin/assignments?status=completed"
+          hint="Filter register"
         />
       </div>
 
@@ -120,11 +143,49 @@ export default async function AdminAssignmentsPage() {
 
       {/* Register */}
       <Card padded={false} className="overflow-hidden">
-        <div className="border-b border-[var(--border-subtle)] p-5">
-          <CardTitle>Assignment register</CardTitle>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Most recent {assignments.length} assignments, open ones first.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] p-5">
+          <div>
+            <CardTitle>
+              Assignment register
+              {status && (
+                <span className="ml-2 text-sm font-medium text-[var(--accent)]">
+                  · {status}
+                </span>
+              )}
+            </CardTitle>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              {assignments.length} shown
+              {status ? ` matching "${status}"` : ", open ones first"}.
+            </p>
+          </div>
+
+          <div className="neu-inset flex gap-1 rounded-2xl p-1.5">
+            {[
+              { value: "", label: "All" },
+              { value: "open", label: "Open" },
+              { value: "overdue", label: "Overdue" },
+              { value: "completed", label: "Completed" },
+            ].map((option) => {
+              const active = (status ?? "") === option.value;
+              return (
+                <Link
+                  key={option.value || "all"}
+                  href={
+                    option.value
+                      ? `/admin/assignments?status=${option.value}`
+                      : "/admin/assignments"
+                  }
+                  className={
+                    active
+                      ? "neu-sm rounded-xl px-3.5 py-2 text-xs font-medium text-[var(--accent)]"
+                      : "rounded-xl px-3.5 py-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+                  }
+                >
+                  {option.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {assignments.length === 0 ? (

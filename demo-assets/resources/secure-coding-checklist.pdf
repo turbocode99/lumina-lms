@@ -1,0 +1,169 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 2426 >>
+stream
+BT
+/F1 22 Tf
+1 0 0 1 64 778 Tm
+(Secure Coding Checklist) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 64 742 Tm
+(A one-page reference to keep next to your review queue. Nothing here is exotic; the) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 64 726 Tm
+(point is that these are the things that actually come up.) Tj
+ET
+BT
+/F1 14 Tf
+1 0 0 1 64 690 Tm
+(Every input crossing a trust boundary) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 663 Tm
+(- Where did this come from? User, service, queue, file on disk.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 641 Tm
+(- What am I about to do with it? Query, template, shell, path.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 619 Tm
+(- What is the worst thing it could be? Not what you expect - what is possible.) Tj
+ET
+BT
+/F1 14 Tf
+1 0 0 1 64 583 Tm
+(Injection) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 556 Tm
+(- Parameterised queries with bound values, never string concatenation.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 534 Tm
+(- Dynamic identifiers such as sort columns validated against an allowlist.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 512 Tm
+(- Encoding applied at the point of use, in the target context.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 490 Tm
+(- No raw SQL escape hatches without a review comment explaining why.) Tj
+ET
+BT
+/F1 14 Tf
+1 0 0 1 64 454 Tm
+(Authentication and sessions) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 427 Tm
+(- Passwords hashed with a slow algorithm and a per-user salt.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 405 Tm
+(- Identical error for unknown account and wrong password.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 383 Tm
+(- Session cookies httpOnly, secure, and sameSite.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 361 Tm
+(- Authorisation checked on the server for every request, not just in the UI.) Tj
+ET
+BT
+/F1 14 Tf
+1 0 0 1 64 325 Tm
+(Secrets and dependencies) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 298 Tm
+(- No secrets in source, fixtures, or committed env files.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 276 Tm
+(- Lockfile committed; dependency bumps reviewed like code.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 254 Tm
+(- Extra scrutiny for packages touching auth, crypto, or serialisation.) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 232 Tm
+(- Watch for install scripts - they run before your tests do.) Tj
+ET
+BT
+/F1 14 Tf
+1 0 0 1 64 196 Tm
+(Before you approve) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 169 Tm
+(- Could this log something sensitive?) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 147 Tm
+(- Does the error message leak internals to the caller?) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 80 125 Tm
+(- Is there a test that fails if the check is removed?) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Title (Secure Coding Checklist) /Producer (Lumina LMS demo asset generator) >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000353 00000 n 
+0000000450 00000 n 
+0000002928 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 7 0 R >>
+startxref
+3026
+%%EOF

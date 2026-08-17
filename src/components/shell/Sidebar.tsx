@@ -118,6 +118,13 @@ function buildNav(): NavGroup[] {
           minRole: "ADMIN",
         },
         {
+          href: "/admin/certificates",
+          label: "Certificates",
+          icon: <Award className="h-[18px] w-[18px]" />,
+          minRole: "ADMIN",
+          enabled: features.certificates,
+        },
+        {
           href: "/admin/assignments",
           label: "Required training",
           icon: <ClipboardCheck className="h-[18px] w-[18px]" />,
