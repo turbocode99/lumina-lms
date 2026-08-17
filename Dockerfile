@@ -44,7 +44,8 @@ RUN AUTH_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')" npm run build
 FROM base AS runner
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+# Keep in sync with DEFAULT_PORT in scripts/lib/port.mjs.
+ENV PORT=4400
 ENV HOSTNAME=0.0.0.0
 
 RUN addgroup --system --gid 1001 nodejs \
@@ -70,10 +71,12 @@ COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 USER nextjs
-EXPOSE 3000
+EXPOSE 4400
 
+# 127.0.0.1 rather than localhost: the server binds 0.0.0.0 (IPv4), and localhost
+# can resolve to IPv6 ::1 first, which would fail a perfectly healthy container.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4400)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["node", "server.js"]

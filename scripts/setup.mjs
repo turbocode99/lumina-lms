@@ -20,6 +20,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { DEFAULT_PORT } from "./lib/port.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = join(root, ".env");
 const examplePath = join(root, ".env.example");
@@ -151,6 +153,18 @@ if (!readVar("DATABASE_URL")) {
   dim(`DATABASE_URL is set (${readVar("DATABASE_URL")})`);
 }
 
+/* --- PORT ----------------------------------------------------------------- */
+
+// Written explicitly rather than left to the built-in default, so the .env shows
+// which port the app will actually use.
+if (!readVar("PORT")) {
+  upsertVar("PORT", String(DEFAULT_PORT));
+  writeFileSync(envPath, env);
+  ok(`Set PORT to ${DEFAULT_PORT}`);
+} else {
+  dim(`PORT is set (${readVar("PORT")})`);
+}
+
 // Prisma reads .env itself, but the seed script runs in this process tree and
 // several Prisma subcommands resolve env before loading the file. Export both so
 // nothing downstream can trip over a missing value.
@@ -187,14 +201,16 @@ console.log(`\n${c.green}${c.bold}Ready.${c.reset} Start the dev server with:\n`
 console.log(`    ${c.bold}npm run dev${c.reset}\n`);
 
 if (!skipSeed) {
-  console.log(`Then sign in at ${c.cyan}http://localhost:3000${c.reset} as:\n`);
+  console.log(
+    `Then sign in at ${c.cyan}http://localhost:${DEFAULT_PORT}${c.reset} as:\n`
+  );
   console.log("    admin@example.com       (Admin)");
   console.log("    instructor@example.com  (Instructor)");
   console.log("    learner@example.com     (Learner)\n");
   console.log(`  ${c.dim}Password for all seeded accounts: Password123!${c.reset}\n`);
 } else {
   console.log(
-    `Register at ${c.cyan}http://localhost:3000/register${c.reset} — the first account becomes an administrator.\n`
+    `Register at ${c.cyan}http://localhost:${DEFAULT_PORT}/register${c.reset} — the first account becomes an administrator.\n`
   );
 }
 

@@ -59,9 +59,11 @@ npm run setup
 npm run dev
 ```
 
-Open <http://localhost:3000> and sign in as `admin@example.com` / `Password123!`.
+Open <http://localhost:4400> and sign in as `admin@example.com` / `Password123!`.
 
-If something else already has port 3000, both `npm run dev` and `npm start` pick the next free port and tell you which one they took. Set `PORT` to choose explicitly, or pass `--strict-port` to fail instead of moving.
+The default port is **4400**, deliberately not 3000 — that one collides with Next.js, Create React App, and Rails defaults, so on a machine doing any other web work it is usually already taken. 4400 also steers clear of 4000 (Phoenix), 5000 (Flask, macOS AirPlay), 5173 (Vite), 7000 (AirPlay), 8000 (Django), and 8080.
+
+If even 4400 is busy, both `npm run dev` and `npm start` move to the next free port and tell you which they took. Set `PORT` in `.env` or the shell to choose explicitly, or pass `--strict-port` to fail instead of moving. Port 3000 is excluded outright: request it and you get the default back with a note.
 
 That's it — four commands, no manual file editing. `npm run setup` creates `.env` from the template, generates a real random `AUTH_SECRET`, applies the schema, and loads the demo dataset. It's safe to re-run: an existing `.env` is never overwritten, and only a placeholder secret gets replaced.
 
@@ -293,7 +295,9 @@ export AUTH_SECRET=$(openssl rand -base64 32)
 docker compose up -d
 ```
 
-That's the whole deployment. SQLite lives on the `lumina-data` volume and uploads on `lumina-storage`, so both survive container replacement. The image uses Next.js `standalone` output and stays under 300 MB.
+That's the whole deployment — reachable on <http://127.0.0.1:4400>. SQLite lives on the `lumina-data` volume and uploads on `lumina-storage`, so both survive container replacement. The image uses Next.js `standalone` output and stays under 300 MB.
+
+Set `HOST_PORT` to publish on a different host port; the container port stays 4400.
 
 Health check: `GET /api/health` — returns 200 when the process is up and the database is reachable, 503 otherwise. Wired into both the Dockerfile `HEALTHCHECK` and the Compose service.
 
@@ -311,17 +315,19 @@ docker compose --profile postgres up -d
 npm ci && npx prisma db push && npm run build && npm start
 ```
 
-Serves on `http://127.0.0.1:3000`. Use `PORT` to change it.
+Serves on `http://127.0.0.1:4400`. Use `PORT` to change it — the launchers read it from `.env` as well as the shell, with the shell taking precedence.
 
 `npm start` runs `scripts/serve.mjs` rather than `next start`, because `next start` does **not** work with the `output: "standalone"` build this project uses — it refuses and serves nothing. The script assembles the standalone bundle (copying `.next/static` and `public` into it, which Next.js does not do itself) and launches `server.js`. The Dockerfile performs the same copies as explicit layers.
 
 The server binds `0.0.0.0`, which is IPv4-only. On systems that resolve `localhost` to IPv6 `::1` first — Windows does — use `127.0.0.1` instead; the startup banner prints it for you.
 
-**Ports.** If the requested port is taken, the launcher scans upward for a free one and reports the change. In a container or behind a reverse proxy the port is part of the contract, so add `--strict-port` there to fail loudly instead:
+**Ports.** Defaults to 4400. If that is taken, the launcher scans upward for a free one and reports the change. Where the port is part of a contract — behind a reverse proxy, say — add `--strict-port` to fail loudly instead of moving:
 
 ```bash
-PORT=3000 npm start -- --strict-port
+PORT=8080 npm start -- --strict-port
 ```
+
+The single source of truth for the default is `DEFAULT_PORT` in `scripts/lib/port.mjs`. The Dockerfile, compose file, and launch config carry the same number, so change it in all four if you move it.
 
 **Build directories.** `next.config.ts` points dev at `.next-dev` and production at `.next`. They share `.next` by default, which combined with `output: "standalone"` means a `next dev` after a `next build` reads the production artifacts and hangs at "Starting…" indefinitely — no error, no timeout. Separate directories let either command follow the other with no cleanup step.
 

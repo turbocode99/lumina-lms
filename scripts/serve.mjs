@@ -28,10 +28,15 @@ import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadEnvFile } from "./lib/env.mjs";
 import { parsePort, resolvePort } from "./lib/port.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const standalone = join(root, ".next", "standalone");
+
+// Read PORT (and anything else) from .env before the server starts, since plain
+// Node does not load it. Shell values still win.
+loadEnvFile(join(root, ".env"));
 
 const c = {
   reset: "\x1b[0m",

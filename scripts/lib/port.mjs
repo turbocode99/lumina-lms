@@ -20,8 +20,33 @@ import { createServer } from "node:net";
 const c = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
+  dim: "\x1b[2m",
   red: "\x1b[31m",
+  yellow: "\x1b[33m",
 };
+
+/**
+ * Default port for dev and production.
+ *
+ * Deliberately not 3000. That is the default for Next.js, Create React App, and
+ * Rails, so on any machine doing other web work it is usually already taken.
+ * 4400 avoids the other usual suspects too — 4000 (Phoenix), 5000 (Flask, and
+ * macOS AirPlay Receiver), 5173 (Vite), 7000 (AirPlay), 8000 (Django), 8080
+ * (Tomcat and most everything else).
+ *
+ * This is the single source of truth. The Dockerfile, compose file, and launch
+ * config all use the same number; changing it here means changing it there too,
+ * and the README says so.
+ */
+export const DEFAULT_PORT = 4400;
+
+/**
+ * Ports never handed out, even when explicitly requested — a request for one is
+ * redirected to DEFAULT_PORT with a note. 3000 is listed because it collides with
+ * so many other dev servers that landing on it tends to mean fighting something
+ * else for it.
+ */
+const EXCLUDED_PORTS = new Set([3000]);
 
 /** How far to scan upward before giving up. */
 const SCAN_RANGE = 40;
@@ -69,7 +94,7 @@ export async function isPortFree(port) {
   return !results.includes("in-use");
 }
 
-export function parsePort(raw, fallback = 3000) {
+export function parsePort(raw, fallback = DEFAULT_PORT) {
   if (raw === undefined || raw === null || raw === "") return fallback;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
@@ -78,6 +103,13 @@ export function parsePort(raw, fallback = 3000) {
         `Use an integer between 1 and 65535.\n`
     );
     process.exit(1);
+  }
+  if (EXCLUDED_PORTS.has(parsed)) {
+    console.log(
+      `\n  ${c.yellow}Port ${parsed} is excluded, so ${fallback} is used instead.${c.reset}\n` +
+        `  ${c.dim}It collides with too many other dev servers to be a safe default.${c.reset}`
+    );
+    return fallback;
   }
   return parsed;
 }
@@ -90,9 +122,14 @@ export function parsePort(raw, fallback = 3000) {
  * moving would leave the proxy pointing at nothing.
  */
 export async function resolvePort({ preferred, strict = false }) {
-  if (await isPortFree(preferred)) {
-    return { port: preferred, moved: false };
+  // Callers normally pass a value already through parsePort, but guard anyway so
+  // an excluded port cannot slip in from a direct call.
+  const start = EXCLUDED_PORTS.has(preferred) ? DEFAULT_PORT : preferred;
+
+  if (await isPortFree(start)) {
+    return { port: start, moved: start !== preferred };
   }
+  preferred = start;
 
   if (strict) {
     console.error(
@@ -106,6 +143,8 @@ export async function resolvePort({ preferred, strict = false }) {
 
   const ceiling = Math.min(preferred + SCAN_RANGE, 65535);
   for (let candidate = preferred + 1; candidate <= ceiling; candidate++) {
+    // An excluded port is never a valid destination, even mid-scan.
+    if (EXCLUDED_PORTS.has(candidate)) continue;
     if (await isPortFree(candidate)) {
       return { port: candidate, moved: true };
     }

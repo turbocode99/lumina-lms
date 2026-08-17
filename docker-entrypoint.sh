@@ -24,5 +24,5 @@ if [ "${SEED_ON_START:-false}" = "true" ]; then
   npx tsx prisma/seed.ts || echo "  Seed skipped (tsx unavailable in this image)."
 fi
 
-echo "→ Starting Lumina LMS on port ${PORT:-3000}"
+echo "→ Starting Lumina LMS on port ${PORT:-4400}"
 exec "$@"

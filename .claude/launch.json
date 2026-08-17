@@ -5,14 +5,14 @@
       "name": "lumina-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000,
+      "port": 4400,
       "autoPort": true
     },
     {
       "name": "lumina-local",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start"],
-      "port": 3000,
+      "port": 4400,
       "autoPort": true
     }
   ]
