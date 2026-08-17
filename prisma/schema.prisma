@@ -464,6 +464,20 @@ model Notification {
   @@index([userId, read])
 }
 
+/// Failed sign-in attempts, for throttling. Rows are pruned opportunistically.
+model LoginAttempt {
+  id String @id @default(cuid())
+  /// Lower-cased email that was tried. Not a relation: attempts against
+  /// non-existent accounts must be recorded too, or they become a free oracle.
+  email     String
+  /// Best-effort client address from proxy headers. Nullable because it may be absent.
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([createdAt])
+}
+
 model ActivityLog {
   id       String   @id @default(cuid())
   userId   String

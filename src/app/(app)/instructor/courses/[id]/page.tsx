@@ -28,7 +28,7 @@ import {
   setCourseStatusAction,
 } from "@/app/actions/authoring";
 import { db } from "@/lib/db";
-import { assertCanEditCourse, requireInstructor } from "@/lib/rbac";
+import { requireCourseEditor } from "@/lib/rbac";
 import { parseStringArray } from "@/lib/json";
 import { formatDuration } from "@/lib/utils";
 
@@ -53,10 +53,10 @@ export default async function CourseBuilderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await requireInstructor(`/instructor/courses/${id}`);
 
-  // Redirects to the dashboard if this instructor doesn't own the course.
-  await assertCanEditCourse(id);
+  // Page-context guard: denies gracefully rather than throwing a 500, and 404s
+  // when the course simply does not exist.
+  const user = await requireCourseEditor(id);
 
   const [course, categories] = await Promise.all([
     db.course.findUnique({

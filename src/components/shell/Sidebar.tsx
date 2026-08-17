@@ -14,6 +14,7 @@ import {
   Library,
   PenSquare,
   Route,
+  ShieldCheck,
   Users,
   X,
 } from "lucide-react";
@@ -96,6 +97,12 @@ function buildNav(): NavGroup[] {
           href: "/admin/users",
           label: "People",
           icon: <Users className="h-[18px] w-[18px]" />,
+          minRole: "ADMIN",
+        },
+        {
+          href: "/admin/roles",
+          label: "Roles & access",
+          icon: <ShieldCheck className="h-[18px] w-[18px]" />,
           minRole: "ADMIN",
         },
         {

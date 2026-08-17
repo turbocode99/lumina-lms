@@ -413,12 +413,42 @@ lumina-lms/
 
 ---
 
+## Roles & authorization
+
+Three hierarchical roles: **Learner → Instructor → Administrator**, each including everything below it. Administrators can see and edit the full matrix at **`/admin/roles`**, and assign roles per person at `/admin/users`.
+
+The permission model lives in one place — [`src/lib/permissions.ts`](src/lib/permissions.ts) — and both the guards and the admin matrix are derived from it. A hand-maintained table of "what each role can do" drifts from the code the first time anyone changes a guard, and a security matrix that lies is worse than none.
+
+| | Learner | Instructor | Administrator |
+|---|---|---|---|
+| Browse catalog, enrol, take courses | ✅ | ✅ | ✅ |
+| Notes, reviews, Q&A | ✅ enrolled | ✅ | ✅ |
+| Create and publish courses | — | ✅ own | ✅ any |
+| Author quizzes, upload media | — | ✅ own | ✅ any |
+| Manage people and roles | — | — | ✅ |
+| Categories, paths, required training | — | — | ✅ |
+| Org analytics, certificate register | — | — | ✅ |
+
+Four properties hold this together, and each is verified rather than assumed:
+
+- **The database decides, not the session.** The cookie carries a role, but every request re-reads the user row. A token claiming `ADMIN` for a learner account is ignored, and deactivating someone ends their access on the next request — no waiting for expiry.
+- **Every write is guarded server-side.** All 40 server actions call into [`src/lib/rbac.ts`](src/lib/rbac.ts) before touching data. Hiding a button is presentation, not security.
+- **Ownership is separate from role.** Instructors are limited to courses they created; only administrators act across all of them.
+- **Lesson media requires a session.** Video and resources stream through an authenticated route, so a URL alone is not access.
+
+Refusals are explicit: a blocked user lands on `/forbidden` with their role, the role required, and who to ask — rather than being bounced silently.
+
+### Login throttling
+
+Failed sign-ins are capped at **8 per account** and **30 per address** in a rolling **15-minute** window, counted in the database so the limit survives restarts and holds across instances. Attempts against non-existent accounts are recorded too — skipping them would turn the throttle itself into an account-existence oracle. The decision logic is isolated in [`src/lib/throttle-policy.ts`](src/lib/throttle-policy.ts) with no IO, so the limits and window arithmetic are testable directly.
+
 ## Security notes
 
 Worth knowing before you put this in front of real people:
 
 - **`AUTH_SECRET` must be a real random value.** Everything about session integrity rests on it. `npm run setup` generates one; otherwise use `openssl rand -base64 32`. Never commit it. The app **refuses to start** if the secret is still a template placeholder, because those strings are public and long enough to pass a naive length check — that combination would otherwise let anyone forge a session.
-- **Passwords are bcrypt at cost 12.** Login returns an identical error for unknown-email and wrong-password, and burns comparable time on both, so the form can't be used to enumerate accounts.
+- **Passwords are bcrypt at cost 12.** Login returns an identical error for unknown-email and wrong-password, and burns comparable time on both, so the form can't be used to enumerate accounts. Attempts are throttled — see above.
+- **`not-found` is deliberately vague.** A record that doesn't exist and one you can't see return the same page, so it can't be used to probe for hidden records.
 - **Quizzes are graded server-side.** `QuizOption.isCorrect` is explicitly excluded from the player's query — the answer key is not in the page source.
 - **Storage keys are re-validated on every read.** Path traversal, absolute paths, and anything resolving outside the storage root are rejected before touching the filesystem.
 - **Media is auth-gated.** `/api/media/*` requires a session, so lesson video isn't world-readable by URL.

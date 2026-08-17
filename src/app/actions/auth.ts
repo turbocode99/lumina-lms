@@ -11,6 +11,12 @@ import {
 } from "@/lib/auth";
 import { assertUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
+import {
+  checkLoginAllowed,
+  clearFailedLogins,
+  formatRetryAfter,
+  recordFailedLogin,
+} from "@/lib/throttle";
 import { logActivity, notify } from "@/lib/notify";
 import {
   changePasswordSchema,
@@ -46,6 +52,19 @@ export async function loginAction(
     return { errors: fieldErrors(parsed.error) };
   }
 
+  // Throttle before touching the password, so a locked-out attacker gets no
+  // timing signal and no further comparisons are performed.
+  const throttle = await checkLoginAllowed(parsed.data.email);
+  if (throttle.blocked) {
+    return {
+      errors: {
+        _form: `Too many failed sign-in attempts. Try again in ${formatRetryAfter(
+          throttle.retryAfterSeconds
+        )}.`,
+      },
+    };
+  }
+
   const user = await db.user.findUnique({
     where: { email: parsed.data.email },
     select: { id: true, passwordHash: true, role: true, isActive: true },
@@ -59,11 +78,17 @@ export async function loginAction(
   if (!user) {
     // Burn roughly the same time as a real comparison would.
     await verifyPassword(parsed.data.password, "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvaliduu");
+    // Recorded even for unknown emails — skipping them would make the throttle
+    // itself an account-existence oracle.
+    await recordFailedLogin(parsed.data.email);
     return invalid;
   }
 
   const valid = await verifyPassword(parsed.data.password, user.passwordHash);
-  if (!valid) return invalid;
+  if (!valid) {
+    await recordFailedLogin(parsed.data.email);
+    return invalid;
+  }
 
   if (!user.isActive) {
     return {
@@ -73,6 +98,7 @@ export async function loginAction(
     };
   }
 
+  await clearFailedLogins(parsed.data.email);
   await db.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },

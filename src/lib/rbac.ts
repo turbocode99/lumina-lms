@@ -1,9 +1,10 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { getCurrentUser, type SessionUser } from "@/lib/auth";
 import { ROLE_RANK, type Role } from "@/lib/enums";
+import { roleHas, type Permission } from "@/lib/permissions";
 import { db } from "@/lib/db";
 
 /**
@@ -25,6 +26,25 @@ export function atLeast(role: Role, minimum: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[minimum];
 }
 
+/** Role-based permission check. See src/lib/permissions.ts for the model. */
+export function can(user: SessionUser | null, permission: Permission): boolean {
+  if (!user) return false;
+  return roleHas(user.role, permission);
+}
+
+/**
+ * Sends the user to the 403 page with enough context to explain the refusal.
+ *
+ * Previously this redirected to `/dashboard?error=forbidden`, but the dashboard
+ * never read that parameter — so a blocked user was bounced silently with no idea
+ * what had happened or why.
+ */
+function denyAccess(reason: string, required?: Role): never {
+  const params = new URLSearchParams({ reason });
+  if (required) params.set("required", required);
+  redirect(`/forbidden?${params.toString()}`);
+}
+
 /** For pages: redirects to login instead of throwing. */
 export async function requireUser(returnTo?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
@@ -41,7 +61,7 @@ export async function requireRole(
 ): Promise<SessionUser> {
   const user = await requireUser(returnTo);
   if (!atLeast(user.role, minimum)) {
-    redirect("/dashboard?error=forbidden");
+    denyAccess("role", minimum);
   }
   return user;
 }
@@ -52,6 +72,29 @@ export async function requireInstructor(returnTo?: string) {
 
 export async function requireAdmin(returnTo?: string) {
   return requireRole("ADMIN", returnTo);
+}
+
+/**
+ * Page-context equivalent of `assertCanEditCourse`.
+ *
+ * The assert* helpers throw, which is right inside a server action where the
+ * caller turns the error into a message. Thrown from a *page* with no error
+ * boundary it produced a raw HTTP 500 — access was correctly denied, but the
+ * failure looked like a crash. This denies gracefully instead.
+ */
+export async function requireCourseEditor(courseId: string): Promise<SessionUser> {
+  const user = await requireRole("INSTRUCTOR");
+  if (user.role === "ADMIN") return user;
+
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: { instructorId: true },
+  });
+  if (!course) notFound();
+  if (course.instructorId !== user.id) {
+    denyAccess("ownership");
+  }
+  return user;
 }
 
 /** For server actions: throws so the action can return a typed error. */
