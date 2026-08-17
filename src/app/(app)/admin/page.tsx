@@ -152,7 +152,7 @@ export default async function AdminOverviewPage() {
       </header>
 
       {/* Headline metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="admin-stats" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="People"
           value={userCount}
@@ -191,7 +191,7 @@ export default async function AdminOverviewPage() {
 
       {/* Compliance strip */}
       {luminaConfig.features.mandatoryTraining && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div data-tour="admin-compliance" className="grid gap-4 md:grid-cols-3">
           <Link
             href="/admin/assignments?status=open"
             className="neu-interactive group rounded-[var(--radius-neu)] p-6"

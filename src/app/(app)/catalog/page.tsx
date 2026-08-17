@@ -140,7 +140,10 @@ async function CatalogResults({ params }: { params: SearchParams }) {
         </div>
       ) : (
         <>
-          <div className="stagger mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          <div
+            data-tour="catalog-grid"
+            className="stagger mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+          >
             {courses.map((course) => (
               <CourseCard
                 key={course.id}

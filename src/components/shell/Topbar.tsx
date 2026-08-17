@@ -16,6 +16,7 @@ import {
 import { logoutAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { TourButton } from "@/components/tour/TourButton";
 import { RoleBadge } from "@/components/ui/Badge";
 import { cn, formatRelative } from "@/lib/utils";
 import type { SessionUser } from "@/lib/auth";
@@ -101,6 +102,7 @@ export function Topbar({
         </form>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <TourButton />
           <ThemeToggle compact />
 
           {/* Notifications */}

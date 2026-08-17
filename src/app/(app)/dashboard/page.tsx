@@ -152,7 +152,10 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-8">
       {/* Hero */}
-      <section className="neu overflow-hidden rounded-[var(--radius-neu-lg)] p-7 sm:p-9">
+      <section
+        data-tour="dashboard-hero"
+        className="neu overflow-hidden rounded-[var(--radius-neu-lg)] p-7 sm:p-9"
+      >
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--text-muted)]">
@@ -217,7 +220,10 @@ export default async function DashboardPage() {
       </section>
 
       {/* Stats */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        data-tour="dashboard-stats"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatCard
           label="Enrolled"
           value={enrollments.length}
@@ -253,7 +259,7 @@ export default async function DashboardPage() {
 
       {/* Required training */}
       {dueAssignments.length > 0 && (
-        <section>
+        <section data-tour="dashboard-required">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-[var(--text-primary)]">
               <ShieldAlert className="h-5 w-5 text-[var(--danger)]" />

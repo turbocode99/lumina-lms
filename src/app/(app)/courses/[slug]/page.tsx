@@ -389,7 +389,10 @@ export default async function CourseDetailPage({
               </p>
             )}
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[var(--text-muted)]">
+            <div
+              data-tour="course-meta"
+              className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[var(--text-muted)]"
+            >
               {course.ratingCount > 0 && (
                 <Rating value={course.ratingAvg} count={course.ratingCount} />
               )}
@@ -431,7 +434,10 @@ export default async function CourseDetailPage({
           </div>
 
           {/* Action panel */}
-          <aside className="border-t border-[var(--border-subtle)] p-7 sm:p-9 lg:border-l lg:border-t-0">
+          <aside
+            data-tour="course-enroll"
+            className="border-t border-[var(--border-subtle)] p-7 sm:p-9 lg:border-l lg:border-t-0"
+          >
             <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-2xl">
               {course.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -532,7 +538,9 @@ export default async function CourseDetailPage({
         </div>
       </section>
 
-      <Tabs items={tabs} />
+      <div data-tour="course-tabs">
+        <Tabs items={tabs} />
+      </div>
     </div>
   );
 }

@@ -252,7 +252,7 @@ export default async function LearnPage({
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         {/* Main column */}
-        <div className="min-w-0 space-y-6">
+        <div data-tour="player-main" className="min-w-0 space-y-6">
           {/* Lesson body */}
           {lesson.type === "VIDEO" && lesson.contentUrl ? (
             <VideoPlayer
@@ -367,7 +367,10 @@ export default async function LearnPage({
           )}
 
           {/* Prev / next */}
-          <div className="flex items-center justify-between gap-4">
+          <div
+            data-tour="player-next"
+            className="flex items-center justify-between gap-4"
+          >
             {previous ? (
               <Link
                 href={`/learn/${course.slug}/${previous.id}`}
@@ -423,7 +426,7 @@ export default async function LearnPage({
 
         {/* Sidebar */}
         <aside className="min-w-0 space-y-6">
-          <Card padded={false} className="overflow-hidden">
+          <Card padded={false} className="overflow-hidden" data-tour="player-curriculum">
             <div className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] p-5">
               <ListChecks className="h-4 w-4 text-[var(--accent)]" />
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -445,7 +448,7 @@ export default async function LearnPage({
           </Card>
 
           {sidePanels.length > 0 && (
-            <div className="hidden xl:block">
+            <div className="hidden xl:block" data-tour="player-panels">
               <Card>
                 <Tabs items={sidePanels} />
               </Card>

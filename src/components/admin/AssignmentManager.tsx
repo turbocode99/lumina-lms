@@ -97,7 +97,7 @@ export function AssignmentManager({
     });
 
   return (
-    <Card>
+    <Card data-tour="assign-form">
       <CardTitle className="mb-5 flex items-center gap-2">
         <ClipboardCheck className="h-5 w-5 text-[var(--accent)]" />
         Assign required training

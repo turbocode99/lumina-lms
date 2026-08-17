@@ -226,6 +226,52 @@ assert("my-learning honours ?tab", myLearning.includes("Completed"));
 if (videoLesson) assert("player embeds the video", player.includes(videoLesson.contentUrl));
 assert("create form offers a thumbnail", newCourse.includes('name="thumbnailUrl"'));
 
+/* --- guided tour anchors --------------------------------------------------- */
+
+/**
+ * A tour step whose anchor has been renamed disappears silently, so the tour just
+ * gets shorter without anything failing. Checking the anchors render is the only
+ * way that surfaces.
+ */
+const { TOURS } = await import("../src/lib/tours.ts").catch(() => ({ TOURS: null }));
+
+if (TOURS) {
+  const concrete = {
+    "/courses/": course ? `/courses/${course.slug}` : null,
+    "/learn/": videoLesson
+      ? `/learn/${videoLesson.section.course.slug}/${videoLesson.id}`
+      : null,
+    "/instructor/courses/": course ? `/instructor/courses/${course.id}` : null,
+  };
+
+  let missingAnchors = 0;
+  let checkedSteps = 0;
+
+  for (const tour of TOURS) {
+    const url = tour.exact ? tour.route : concrete[tour.route];
+    if (!url) continue;
+
+    const res = await fetch(BASE + url, { headers: { cookie: admin.cookie } });
+    if (res.status !== 200) {
+      missingAnchors += 1;
+      continue;
+    }
+    const body = await res.text();
+
+    for (const step of tour.steps) {
+      if (!step.target || step.optional) continue;
+      checkedSteps += 1;
+      if (!body.includes(`data-tour="${step.target}"`)) missingAnchors += 1;
+    }
+  }
+
+  assert(
+    "guided tour anchors all render",
+    missingAnchors === 0,
+    `${TOURS.length} tours, ${checkedSteps} required steps, ${missingAnchors} missing`
+  );
+}
+
 /* --- report ---------------------------------------------------------------- */
 
 let failed = 0;

@@ -5,6 +5,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { RoleBadge } from "@/components/ui/Badge";
 import { Card, CardTitle, StatCard } from "@/components/ui/Card";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { TourSettings } from "@/components/tour/TourSettings";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { formatDate } from "@/lib/utils";
@@ -107,6 +108,9 @@ export default async function ProfilePage() {
         </CardTitle>
         <ProfileForm user={user} />
       </Card>
+
+      {/* Guided tours */}
+      <TourSettings user={user} />
 
       {/* Appearance */}
       <Card>

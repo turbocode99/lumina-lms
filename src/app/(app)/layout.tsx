@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/shell/AppShell";
+import { TourProvider } from "@/components/tour/TourProvider";
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { luminaConfig } from "~/lumina.config";
@@ -30,13 +31,26 @@ export default async function AppLayout({
       ])
     : [[], 0];
 
+  // Loaded once here rather than per page, so navigating between screens never
+  // waits on a query to decide whether a tour has already been seen.
+  const seenTours = await db.tourCompletion.findMany({
+    where: { userId: user.id },
+    select: { tourId: true },
+  });
+
   return (
-    <AppShell
-      user={user}
-      notifications={notifications}
-      unreadCount={unreadCount}
+    <TourProvider
+      role={user.role}
+      seenTourIds={seenTours.map((t) => t.tourId)}
+      autoStart
     >
-      {children}
-    </AppShell>
+      <AppShell
+        user={user}
+        notifications={notifications}
+        unreadCount={unreadCount}
+      >
+        {children}
+      </AppShell>
+    </TourProvider>
   );
 }

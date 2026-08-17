@@ -142,7 +142,7 @@ export default async function CourseBuilderPage({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="builder-publish">
             <ButtonLink href={`/courses/${course.slug}`}>
               <Eye className="h-4 w-4" />
               Preview
@@ -205,6 +205,7 @@ export default async function CourseBuilderPage({
         />
       </div>
 
+      <div data-tour="builder-tabs">
       <Tabs
         defaultTab="curriculum"
         items={[
@@ -214,7 +215,12 @@ export default async function CourseBuilderPage({
             icon: <Layers className="h-4 w-4" />,
             count: totalLessons,
             content: (
-              <CurriculumBuilder courseId={course.id} sections={course.sections} />
+              <div data-tour="builder-curriculum">
+                <CurriculumBuilder
+                  courseId={course.id}
+                  sections={course.sections}
+                />
+              </div>
             ),
           },
           {
@@ -302,6 +308,7 @@ export default async function CourseBuilderPage({
           },
         ]}
       />
+      </div>
     </div>
   );
 }

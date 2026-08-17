@@ -241,7 +241,7 @@ export function UserManager({
   return (
     <div className="space-y-5">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-tour="admin-users-filters" className="flex flex-wrap items-center gap-3">
         <div className="neu-inset neu-input flex min-w-[240px] flex-1 items-center gap-2.5 rounded-2xl px-4 py-3">
           <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
           <input
@@ -288,7 +288,11 @@ export function UserManager({
           </select>
         </div>
 
-        <Button onClick={() => setInviting(true)} variant="primary">
+        <Button
+          onClick={() => setInviting(true)}
+          variant="primary"
+          data-tour="admin-users-add"
+        >
           <UserPlus className="h-4 w-4" />
           Add person
         </Button>
@@ -313,7 +317,7 @@ export function UserManager({
       </div>
 
       {/* Table */}
-      <Card padded={false} className="overflow-hidden">
+      <Card padded={false} className="overflow-hidden" data-tour="admin-users-table">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>

@@ -226,6 +226,9 @@ export function Sidebar({
                         <Link
                           href={item.href}
                           onClick={onClose}
+                          // Anchors guided-tour steps that point at navigation,
+                          // e.g. "nav-my-learning".
+                          data-tour={`nav-${item.href.replace(/^\//, "").replace(/\//g, "-")}`}
                           aria-current={active ? "page" : undefined}
                           className={cn(
                             "group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-250",

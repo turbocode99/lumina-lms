@@ -72,7 +72,12 @@ export default async function InstructorPage() {
           </p>
         </div>
 
-        <ButtonLink href="/instructor/courses/new" variant="primary" size="lg">
+        <ButtonLink
+          href="/instructor/courses/new"
+          variant="primary"
+          size="lg"
+          data-tour="instructor-new"
+        >
           <Plus className="h-5 w-5" />
           New course
         </ButtonLink>
@@ -133,7 +138,7 @@ export default async function InstructorPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" data-tour="instructor-list">
           {courses.map((course) => (
             <Card key={course.id} elevation="sm" className="!p-4">
               <div className="flex flex-wrap items-center gap-4">

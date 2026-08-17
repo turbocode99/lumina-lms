@@ -142,7 +142,7 @@ export default async function AdminAssignmentsPage({
       />
 
       {/* Register */}
-      <Card padded={false} className="overflow-hidden">
+      <Card padded={false} className="overflow-hidden" data-tour="assign-register">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] p-5">
           <div>
             <CardTitle>

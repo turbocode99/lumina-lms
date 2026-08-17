@@ -73,6 +73,7 @@ export function CatalogFilters({
             push({ q: query.trim() || null });
           }}
           className="min-w-[240px] flex-1"
+          data-tour="catalog-search"
         >
           <div className="neu-inset neu-input flex items-center gap-2.5 rounded-2xl px-4 py-3">
             <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
@@ -103,6 +104,7 @@ export function CatalogFilters({
           type="button"
           onClick={() => setShowFilters((v) => !v)}
           aria-expanded={showFilters}
+          data-tour="catalog-filters"
           className={cn(showFilters && "neu-pressed")}
         >
           <SlidersHorizontal className="h-4 w-4" />

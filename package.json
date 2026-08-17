@@ -25,7 +25,7 @@
     "setup": "node scripts/setup.mjs",
     "setup:empty": "node scripts/setup.mjs --no-seed",
     "set-admin": "node scripts/set-admin.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "tsx scripts/smoke.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

@@ -91,9 +91,10 @@ export default async function MyLearningPage({
         </p>
       </header>
 
-      <Tabs
-        defaultTab={activeTab}
-        items={[
+      <div data-tour="my-learning-tabs">
+        <Tabs
+          defaultTab={activeTab}
+          items={[
           {
             id: "all",
             label: "All",
@@ -137,8 +138,9 @@ export default async function MyLearningPage({
                 "Finish a course and it'll show up here along with your certificate.",
             }),
           },
-        ]}
-      />
+          ]}
+        />
+      </div>
     </div>
   );
 }

@@ -59,6 +59,7 @@ model User {
   certificates     Certificate[]
   notifications    Notification[]
   activity         ActivityLog[]
+  tours            TourCompletion[]
 
   @@index([role])
   @@index([department])
@@ -462,6 +463,27 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+}
+
+/// Which guided tours a user has finished or dismissed.
+///
+/// Stored per account rather than in localStorage so the tour does not reappear
+/// when someone moves to another machine, and so "replay tours" is a real setting
+/// rather than a browser-storage trick.
+model TourCompletion {
+  id     String @id @default(cuid())
+  userId String
+  /// Tour identifier from src/lib/tours.ts.
+  tourId String
+  /// Set when the user reached the last step; null if they skipped.
+  finishedAt  DateTime?
+  dismissedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tourId])
+  @@index([userId])
 }
 
 /// Failed sign-in attempts, for throttling. Rows are pruned opportunistically.

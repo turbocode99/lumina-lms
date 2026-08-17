@@ -90,7 +90,7 @@ export default async function AdminRolesPage() {
       </header>
 
       {/* Roles */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div data-tour="roles-cards" className="grid gap-4 md:grid-cols-3">
         {ROLES.map((role) => (
           <Card key={role} elevation="sm">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -130,7 +130,7 @@ export default async function AdminRolesPage() {
       )}
 
       {/* Matrix */}
-      <Card padded={false} className="overflow-hidden">
+      <Card padded={false} className="overflow-hidden" data-tour="roles-matrix">
         <div className="border-b border-[var(--border-subtle)] p-5">
           <CardTitle>Permission matrix</CardTitle>
           <p className="mt-1 text-sm text-[var(--text-muted)]">

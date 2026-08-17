@@ -413,6 +413,19 @@ lumina-lms/
 
 ---
 
+## Guided tours
+
+Every interactive screen has a short walkthrough that runs once on a user's first visit, then stays available from the **?** button in the top bar. Tours are defined in [`src/lib/tours.ts`](src/lib/tours.ts) — 11 tours, 31 steps — and matched by route and minimum role, so a learner is never walked through an admin control they cannot see.
+
+Design choices worth knowing, since the usual failure mode of product tours is being patronising and then ignored:
+
+- **Steps explain what labels don't.** "This is the search box" earns nothing. "Filters live in the URL, so a filtered view is a link you can share" is worth a step. Three to five steps per screen — a fourteen-step tour teaches people to skip the next one too.
+- **Anchors are `data-tour` attributes on real UI**, not CSS classes or DOM structure, so restyling cannot silently break a tour. A step whose anchor is missing is dropped rather than spotlighting empty space; steps that are genuinely state-dependent are marked `optional` so an audit can tell "conditional" from "someone renamed the anchor".
+- **Progress is per account, not per browser.** Stored in `TourCompletion`, so dismissing a tour on your laptop doesn't make it reappear on a shared machine — and "replay" is a real setting rather than a localStorage trick. Manage them under **Profile → Guided tours**, individually or all at once.
+- **No new dependency.** The overlay is a spotlight, a positioned card, and keyboard handling; a tour library would arrive with its own theming to fight with the design tokens. Arrow keys move, Esc closes, progress dots jump.
+
+`npm run smoke` checks that every required anchor actually renders — a renamed anchor otherwise just makes a tour quietly shorter without failing anything.
+
 ## Roles & authorization
 
 Three hierarchical roles: **Learner → Instructor → Administrator**, each including everything below it. Administrators can see and edit the full matrix at **`/admin/roles`**, and assign roles per person at `/admin/users`.
