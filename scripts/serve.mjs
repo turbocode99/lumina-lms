@@ -29,7 +29,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnvFile } from "./lib/env.mjs";
-import { parsePort, resolvePort } from "./lib/port.mjs";
+import { parsePort, preferredHost, resolvePort } from "./lib/port.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const standalone = join(root, ".next", "standalone");
@@ -126,18 +126,16 @@ if (databaseUrl?.startsWith("file:")) {
 
 /* --- Run ------------------------------------------------------------------ */
 
-// 0.0.0.0 binds IPv4 only. That is right for containers and LAN access, but on
-// systems that resolve `localhost` to IPv6 ::1 first — Windows does — visiting
-// http://localhost fails with a connection error while the server is perfectly
-// healthy. So the URL printed below is 127.0.0.1, which always resolves to the
-// interface actually being listened on.
-const hostname = process.env.HOSTNAME || "0.0.0.0";
+// Resolved after the port, since choosing the address requires a test bind.
+let hostname = "0.0.0.0";
 
 const requested = parsePort(process.env.PORT);
 const { port, moved } = await resolvePort({
   preferred: requested,
   strict: strictPort,
 });
+
+hostname = await preferredHost(port);
 
 console.log(
   `\n${c.green}${c.bold}Lumina LMS${c.reset} ${c.dim}(production)${c.reset}\n\n` +
@@ -156,9 +154,18 @@ if (resolvedDatabase) {
 }
 
 console.log(
-  `  ${c.dim}Bound to ${hostname}:${port}. If http://localhost:${port} refuses to\n` +
-    `  connect, use the address above — localhost may resolve to IPv6 first.${c.reset}\n`
+  `  ${c.dim}also http://localhost:${port}${
+    hostname === "::" ? ` and http://[::1]:${port}` : ""
+  }${c.reset}`
 );
+
+if (hostname !== "::") {
+  console.log(
+    `  ${c.dim}IPv4 only (bound ${hostname}) — http://[::1]:${port} will not connect.${c.reset}`
+  );
+}
+
+console.log("");
 
 const child = spawn(process.execPath, [join(standalone, "server.js")], {
   cwd: standalone,

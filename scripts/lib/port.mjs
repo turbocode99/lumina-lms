@@ -94,6 +94,30 @@ export async function isPortFree(port) {
   return !results.includes("in-use");
 }
 
+/**
+ * True if the server could actually bind this host. Used to choose a dual-stack
+ * bind address, falling back when IPv6 is unavailable.
+ */
+export async function canBind(port, host) {
+  return (await probeHost(port, host)) !== "in-use";
+}
+
+/**
+ * Picks the widest address the machine will accept.
+ *
+ * `::` binds IPv6 *and*, on every platform this targets, IPv4-mapped addresses —
+ * so `127.0.0.1`, `[::1]`, and `localhost` all reach the server whichever family
+ * the client picks first. Plain `0.0.0.0` is IPv4-only, which is why
+ * `http://[::1]:PORT` was refused and `http://localhost:PORT` depended on the
+ * browser retrying after a failed IPv6 attempt. Falls back to `0.0.0.0` where IPv6
+ * is disabled.
+ */
+export async function preferredHost(port) {
+  if (process.env.HOSTNAME) return process.env.HOSTNAME;
+  if (await canBind(port, "::")) return "::";
+  return "0.0.0.0";
+}
+
 export function parsePort(raw, fallback = DEFAULT_PORT) {
   if (raw === undefined || raw === null || raw === "") return fallback;
   const parsed = Number(raw);

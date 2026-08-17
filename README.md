@@ -61,6 +61,8 @@ npm run dev
 
 Open <http://localhost:4400> and sign in as `admin@example.com` / `Password123!`.
 
+`npm run dev` and `npm start` both keep running until you stop them — if the page won't load, check the process is still alive before looking anywhere else.
+
 The default port is **4400**, deliberately not 3000 — that one collides with Next.js, Create React App, and Rails defaults, so on a machine doing any other web work it is usually already taken. 4400 also steers clear of 4000 (Phoenix), 5000 (Flask, macOS AirPlay), 5173 (Vite), 7000 (AirPlay), 8000 (Django), and 8080.
 
 If even 4400 is busy, both `npm run dev` and `npm start` move to the next free port and tell you which they took. Set `PORT` in `.env` or the shell to choose explicitly, or pass `--strict-port` to fail instead of moving. Port 3000 is excluded outright: request it and you get the default back with a note.
@@ -315,11 +317,11 @@ docker compose --profile postgres up -d
 npm ci && npx prisma db push && npm run build && npm start
 ```
 
-Serves on `http://127.0.0.1:4400`. Use `PORT` to change it — the launchers read it from `.env` as well as the shell, with the shell taking precedence.
+Serves on `http://127.0.0.1:4400`, and equally on `http://localhost:4400` and `http://[::1]:4400`. Use `PORT` to change it — the launchers read it from `.env` as well as the shell, with the shell taking precedence.
 
 `npm start` runs `scripts/serve.mjs` rather than `next start`, because `next start` does **not** work with the `output: "standalone"` build this project uses — it refuses and serves nothing. The script assembles the standalone bundle (copying `.next/static` and `public` into it, which Next.js does not do itself) and launches `server.js`. The Dockerfile performs the same copies as explicit layers.
 
-The server binds `0.0.0.0`, which is IPv4-only. On systems that resolve `localhost` to IPv6 `::1` first — Windows does — use `127.0.0.1` instead; the startup banner prints it for you.
+**Bind address.** The server binds `::`, which accepts IPv6 *and* IPv4-mapped connections, so `127.0.0.1`, `localhost`, and `[::1]` all reach it whichever family the client tries first. This matters more than it sounds: with an IPv4-only `0.0.0.0` bind, `http://[::1]:4400` is refused outright and `http://localhost:4400` works only if the client retries IPv4 after the IPv6 attempt fails — so the app appears down while being perfectly healthy. Where IPv6 is disabled the launcher detects the failed bind and falls back to `0.0.0.0`, and says so. Set `HOSTNAME` to override.
 
 **Ports.** Defaults to 4400. If that is taken, the launcher scans upward for a free one and reports the change. Where the port is part of a contract — behind a reverse proxy, say — add `--strict-port` to fail loudly instead of moving:
 
