@@ -233,9 +233,11 @@ assert("create form offers a thumbnail", newCourse.includes('name="thumbnailUrl"
  * gets shorter without anything failing. Checking the anchors render is the only
  * way that surfaces.
  */
-const { TOURS } = await import("../src/lib/tours.ts").catch(() => ({ TOURS: null }));
+const tourModule = await import("../src/lib/tours.ts").catch(() => null);
 
-if (TOURS) {
+if (tourModule) {
+  const { TOURS, tourForRoute } = tourModule;
+
   const concrete = {
     "/courses/": course ? `/courses/${course.slug}` : null,
     "/learn/": videoLesson
@@ -269,6 +271,59 @@ if (TOURS) {
     "guided tour anchors all render",
     missingAnchors === 0,
     `${TOURS.length} tours, ${checkedSteps} required steps, ${missingAnchors} missing`
+  );
+
+  /**
+   * Regression guard for the stuck-scroll bug: a tour that resolves to a screen
+   * where none of its anchors exist used to mount, render nothing, and leave the
+   * page locked. Every reachable route must either have no tour, or a tour with at
+   * least one step that can actually be shown.
+   */
+  const ROUTES = [
+    "/dashboard",
+    "/catalog",
+    "/my-learning",
+    "/paths",
+    "/certificates",
+    "/notifications",
+    "/profile",
+    "/instructor",
+    "/instructor/courses/new",
+    "/admin",
+    "/admin/users",
+    "/admin/courses",
+    "/admin/paths",
+    "/admin/categories",
+    "/admin/certificates",
+    "/admin/assignments",
+    "/admin/roles",
+    ...(course ? [`/courses/${course.slug}`, `/instructor/courses/${course.id}`] : []),
+    ...(videoLesson
+      ? [`/learn/${videoLesson.section.course.slug}/${videoLesson.id}`]
+      : []),
+  ];
+
+  const emptyTours = [];
+
+  for (const path of ROUTES) {
+    const tour = tourForRoute(path, "ADMIN");
+    if (!tour) continue;
+
+    const res = await fetch(BASE + path, { headers: { cookie: admin.cookie } });
+    if (res.status !== 200) continue;
+    const body = await res.text();
+
+    const showable = tour.steps.filter(
+      (step) => !step.target || body.includes(`data-tour="${step.target}"`)
+    ).length;
+
+    if (showable === 0) emptyTours.push(`${path} -> ${tour.id}`);
+  }
+
+  assert(
+    "no route resolves to a tour with zero visible steps",
+    emptyTours.length === 0,
+    emptyTours.length ? emptyTours.join("; ") : `${ROUTES.length} routes checked`
   );
 }
 

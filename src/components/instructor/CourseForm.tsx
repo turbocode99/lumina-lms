@@ -78,14 +78,15 @@ export function CourseForm({
         </p>
       )}
 
-      <Input
-        name="title"
-        label="Course title"
-        placeholder="Secure Coding Fundamentals"
-        defaultValue={values?.title ?? ""}
-        error={state.errors?.title}
-        required
-      />
+      <div data-tour="create-basics" className="space-y-6">
+        <Input
+          name="title"
+          label="Course title"
+          placeholder="Secure Coding Fundamentals"
+          defaultValue={values?.title ?? ""}
+          error={state.errors?.title}
+          required
+        />
 
       <Input
         name="subtitle"
@@ -95,14 +96,15 @@ export function CourseForm({
         error={state.errors?.subtitle}
       />
 
-      <Textarea
-        name="description"
-        label="Description"
-        placeholder="What this course covers, and why it matters for your team."
-        rows={6}
-        defaultValue={values?.description ?? ""}
-        error={state.errors?.description}
-      />
+        <Textarea
+          name="description"
+          label="Description"
+          placeholder="What this course covers, and why it matters for your team."
+          rows={6}
+          defaultValue={values?.description ?? ""}
+          error={state.errors?.description}
+        />
+      </div>
 
       <div className="grid gap-6 sm:grid-cols-3">
         <Select
@@ -141,6 +143,7 @@ export function CourseForm({
       </div>
 
       <Textarea
+        data-tour="create-objectives"
         name="objectives"
         label="What learners will be able to do"
         placeholder={"One per line:\nSpot the OWASP Top 10 in a code review\nWrite parameterised queries by default"}
@@ -203,9 +206,11 @@ export function CourseForm({
         </div>
       )}
 
-      <SubmitButton
-        label={mode === "create" ? "Create course" : "Save changes"}
-      />
+      <div data-tour="create-submit">
+        <SubmitButton
+          label={mode === "create" ? "Create course" : "Save changes"}
+        />
+      </div>
     </form>
   );
 }

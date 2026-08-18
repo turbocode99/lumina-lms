@@ -25,6 +25,18 @@ import { GuidedTour } from "./GuidedTour";
  * next page load.
  */
 
+/**
+ * How many of a tour's steps can actually be shown right now. Centred steps always
+ * count; anchored ones only if their element is on the page.
+ */
+function renderableSteps(tour: Tour): number {
+  if (typeof document === "undefined") return 0;
+  return tour.steps.filter(
+    (step) =>
+      !step.target || document.querySelector(`[data-tour="${step.target}"]`)
+  ).length;
+}
+
 interface TourContextValue {
   /** The tour for the current route, if the user's role qualifies. */
   available: Tour | null;
@@ -68,15 +80,18 @@ export function TourProvider({
   const alreadySeen = available ? seen.has(available.id) : true;
 
   /**
-   * Auto-start on first visit, after a short delay so the page has painted and
-   * the anchors exist — measuring immediately gives a spotlight on the wrong box.
+   * Auto-start on first visit, after a short delay so the page has painted and the
+   * anchors exist — measuring immediately spotlights the wrong box.
    */
   useEffect(() => {
     if (!autoStart || !available || seen.has(available.id)) return;
 
     const timer = window.setTimeout(() => {
-      // Re-check: the user may have navigated away during the delay.
-      if (document.querySelector("[data-tour]")) setActiveTour(available);
+      // Only start if this tour's own anchors are on the page. The previous check
+      // looked for any [data-tour] element at all, which the sidebar always
+      // satisfies — so a tour resolved to the wrong screen still started and then
+      // rendered nothing.
+      if (renderableSteps(available) > 0) setActiveTour(available);
     }, 700);
 
     return () => window.clearTimeout(timer);
@@ -100,8 +115,10 @@ export function TourProvider({
     [activeTour]
   );
 
+  // Manual launch is guarded too: the two entry points fail independently, and a
+  // tour with nothing to show should never mount.
   const start = useCallback(() => {
-    if (available) setActiveTour(available);
+    if (available && renderableSteps(available) > 0) setActiveTour(available);
   }, [available]);
 
   const value = useMemo(

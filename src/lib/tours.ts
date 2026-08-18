@@ -47,6 +47,12 @@ export interface Tour {
    */
   route: string;
   exact?: boolean;
+  /**
+   * Pathnames the prefix must not swallow. A prefix like "/instructor/courses/" also
+   * matches "/instructor/courses/new", which is a different screen with none of the
+   * builder's anchors — so the tour resolved there and had nothing to show.
+   */
+  exclude?: string[];
   minRole?: Role;
   steps: TourStep[];
 }
@@ -222,9 +228,39 @@ export const TOURS: Tour[] = [
   },
 
   {
+    id: "course-create-v1",
+    name: "Creating a course",
+    route: "/instructor/courses/new",
+    exact: true,
+    minRole: "INSTRUCTOR",
+    steps: [
+      {
+        target: "create-basics",
+        title: "Only the title is required",
+        body: "Everything else can be filled in later. Getting the course created is what unlocks the curriculum builder, so don't labour over the description now.",
+        placement: "bottom",
+      },
+      {
+        target: "create-objectives",
+        title: "One outcome per line",
+        body: "These render as the checklist learners see before enrolling. Write what they'll be able to *do*, not what the course covers.",
+        placement: "top",
+      },
+      {
+        target: "create-submit",
+        title: "It's created as a draft",
+        body: "Nothing is visible to learners until you publish, and publishing needs at least one lesson — so you can save a rough outline safely.",
+        placement: "top",
+      },
+    ],
+  },
+
+  {
     id: "course-builder-v1",
     name: "Building a course",
     route: "/instructor/courses/",
+    // "/instructor/courses/new" is the create form, not the builder.
+    exclude: ["/instructor/courses/new"],
     minRole: "INSTRUCTOR",
     steps: [
       {
@@ -354,9 +390,10 @@ export const TOURS: Tour[] = [
 
 /** The tour for a pathname, if the user's role qualifies. */
 export function tourForRoute(pathname: string, role: Role): Tour | null {
-  const candidates = TOURS.filter((tour) =>
-    tour.exact ? pathname === tour.route : pathname.startsWith(tour.route)
-  )
+  const candidates = TOURS.filter((tour) => {
+    if (tour.exclude?.includes(pathname)) return false;
+    return tour.exact ? pathname === tour.route : pathname.startsWith(tour.route);
+  })
     // Longest route wins, so /instructor/courses/x prefers the builder tour over
     // the instructor-list tour.
     .sort((a, b) => b.route.length - a.route.length);

@@ -214,14 +214,21 @@ export function GuidedTour({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [next, previous, skip]);
 
-  // Lock scrolling so the spotlight cannot drift away from its anchor.
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
+  /**
+   * Scrolling is deliberately NOT locked.
+   *
+   * An earlier version set `body { overflow: hidden }` for the duration of the
+   * tour to stop the spotlight drifting from its anchor. That was both unnecessary
+   * — the spotlight and card re-measure on scroll, so they track the anchor
+   * correctly — and actively harmful: the lock was applied from an effect that
+   * runs before the render, so when every step filtered out and the component
+   * returned null, the page was left unscrollable with no visible overlay to
+   * dismiss. That is exactly what "scrolling is stuck on the course creation
+   * screen" was.
+   *
+   * Not locking removes the failure mode entirely rather than guarding it, and
+   * letting people scroll during a tour is friendlier anyway.
+   */
 
   if (!mounted || !step) return null;
 
