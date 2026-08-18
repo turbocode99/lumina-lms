@@ -139,46 +139,79 @@ export function GuidedTour({
 
   useEffect(() => setMounted(true), []);
 
-  /** Scroll the anchor into view, then measure it. */
-  const sync = useCallback(() => {
-    setViewport({ width: window.innerWidth, height: window.innerHeight });
-    if (!step) return;
-    const element = findTarget(step);
-    setRect(element ? rectOf(element) : null);
-  }, [step]);
-
+  /**
+   * Bring the anchor into view and measure it immediately.
+   *
+   * The measurement deliberately does not wait for the animation-frame loop below.
+   * `requestAnimationFrame` is tied to the compositor and does not run at all in a
+   * hidden or occluded tab, so a loop-only design leaves `rect` null and the
+   * spotlight never renders. Measuring here means the first paint is correct
+   * regardless, and the loop only has to keep it correct.
+   */
   useLayoutEffect(() => {
     if (!step) return;
-    const element = findTarget(step);
 
-    if (element) {
-      element.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-        block: "center",
-        inline: "nearest",
-      });
+    const element = findTarget(step);
+    if (!element) {
+      setRect(null);
+      return;
     }
 
-    // Measure after the scroll settles, then again on the next frame to catch
-    // layout shifts from the scroll itself.
-    const t1 = window.setTimeout(sync, 60);
-    const t2 = window.setTimeout(sync, 320);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
-  }, [step, sync]);
+    element.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "center",
+      inline: "nearest",
+    });
 
+    setViewport({ width: window.innerWidth, height: window.innerHeight });
+    setRect(rectOf(element));
+  }, [step]);
+
+  /**
+   * Re-measure every frame while the tour is open.
+   *
+   * This replaced scroll and resize listeners. Those only fire for the specific
+   * events they name, so anything else that moves the anchor — a lazily loaded
+   * image reflowing the page, an accordion expanding, a CSS transition, a
+   * programmatic scroll that emits no event — left the spotlight sitting over
+   * empty space with nothing to correct it.
+   *
+   * The cost is one getBoundingClientRect per frame against a single element,
+   * which is negligible, and state only updates when the rect actually changes so
+   * React re-renders no more than the old listeners caused.
+   */
   useEffect(() => {
-    window.addEventListener("resize", sync);
-    window.addEventListener("scroll", sync, true);
-    return () => {
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("scroll", sync, true);
+    let frame = 0;
+
+    const tick = () => {
+      const element = step ? findTarget(step) : null;
+      const next = element ? rectOf(element) : null;
+
+      setRect((current) => {
+        if (!current && !next) return current;
+        if (!current || !next) return next;
+        const same =
+          Math.abs(current.top - next.top) < 0.5 &&
+          Math.abs(current.left - next.left) < 0.5 &&
+          Math.abs(current.width - next.width) < 0.5 &&
+          Math.abs(current.height - next.height) < 0.5;
+        return same ? current : next;
+      });
+
+      setViewport((current) =>
+        current.width === window.innerWidth && current.height === window.innerHeight
+          ? current
+          : { width: window.innerWidth, height: window.innerHeight }
+      );
+
+      frame = window.requestAnimationFrame(tick);
     };
-  }, [sync]);
+
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [step]);
 
   const finish = useCallback(() => onClose("finished"), [onClose]);
   const skip = useCallback(() => onClose("dismissed"), [onClose]);

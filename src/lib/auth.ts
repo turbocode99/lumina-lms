@@ -2,7 +2,7 @@ import "server-only";
 
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -108,13 +108,61 @@ export async function verifySessionToken(
   }
 }
 
+/**
+ * Whether the browser reached us over TLS.
+ *
+ * This decides the cookie's `Secure` flag, and getting it wrong is unusually
+ * painful. Setting `Secure` purely because NODE_ENV is "production" means that on
+ * a production build served over plain HTTP — a LAN address, an internal host
+ * without TLS, a colleague testing from their phone — the browser silently
+ * *discards* the cookie. Sign-in appears to succeed, then bounces straight back to
+ * the login form with no error anywhere. Localhost is exempt in browsers, which is
+ * exactly why it never shows up in local testing.
+ *
+ * So the flag follows the actual connection: set whenever the request arrived over
+ * HTTPS (directly, or via a proxy that says so), and omitted otherwise. `httpOnly`
+ * and `sameSite` are unconditional either way.
+ */
+async function isSecureRequest(): Promise<boolean> {
+  const list = await headers();
+
+  // Set by essentially every reverse proxy; may be a comma-separated chain.
+  const forwardedProto = list.get("x-forwarded-proto");
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+  }
+
+  // Some proxies use these instead.
+  if (list.get("x-forwarded-ssl") === "on") return true;
+  if (list.get("front-end-https") === "on") return true;
+
+  // Direct TLS termination in Node: Next surfaces the origin protocol here.
+  const origin = list.get("origin") ?? list.get("referer");
+  if (origin?.startsWith("https://")) return true;
+
+  return false;
+}
+
+let warnedAboutInsecureCookie = false;
+
 /** Writes the session cookie. Call after a successful credential check. */
 export async function createSession(userId: string, role: Role): Promise<void> {
   const token = await signSessionToken({ sub: userId, role });
+  const secure = await isSecureRequest();
+
+  if (!secure && process.env.NODE_ENV === "production" && !warnedAboutInsecureCookie) {
+    warnedAboutInsecureCookie = true;
+    console.warn(
+      "[lumina] Serving over plain HTTP: the session cookie is being set without " +
+        "the Secure flag so sign-in works. Put TLS in front of this before it is " +
+        "reachable by anyone you do not trust — session cookies are readable on the wire."
+    );
+  }
+
   const store = await cookies();
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: sessionMaxAge(),
