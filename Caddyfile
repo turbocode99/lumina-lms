@@ -1,0 +1,20 @@
+# Caddy reverse proxy for Lumina LMS.
+#
+# Used only by the "proxy" Compose profile (docker-compose.yml), which
+# deploy.sh enables automatically when run with --domain. Caddy requests and
+# renews a Let's Encrypt certificate for {$DOMAIN} on its own — no certbot,
+# no manual renewal, no other configuration needed here.
+#
+# Requirements for the certificate to issue successfully:
+#   - DNS for the domain already points at this host's public IP.
+#   - Ports 80 and 443 are reachable from the internet (port 80 is used for
+#     the ACME HTTP challenge before HTTPS is up).
+#
+# For an internal-only domain with no public DNS, replace the site address
+# below with the domain plus ":443" and add `tls internal` inside the block —
+# that issues a certificate from Caddy's own local CA instead of Let's
+# Encrypt, which clients must then be told to trust explicitly.
+
+{$DOMAIN} {
+	reverse_proxy app:4400
+}

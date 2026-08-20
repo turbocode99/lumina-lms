@@ -24,6 +24,8 @@ Built with Next.js 15 · TypeScript · Prisma · Tailwind CSS 4 · Neumorphic de
 - [Scaling](#scaling)
 - [Project structure](#project-structure)
 - [Commands](#commands)
+- [Guided tours](#guided-tours)
+- [Roles & authorization](#roles--authorization)
 - [Security notes](#security-notes)
 - [Roadmap](#roadmap)
 
@@ -287,28 +289,76 @@ The credential flow and the session helpers are decoupled on purpose: anything t
 
 ## Deployment
 
-### Docker Compose (recommended)
+### On-prem VM (recommended)
+
+**Host OS: Ubuntu Server 24.04 LTS.** Reasoning, not just a default:
+
+- Docker's own apt repository treats Ubuntu as a first-class target, so `docker-ce` tracks upstream releases fastest here — matters more than it sounds, since the Compose file below depends on the `--profile` flag (Compose v2) and healthcheck syntax that older packaged versions lack.
+- LTS means security patches to 2029 without a distribution upgrade, which is what "runs quietly for years on a VM nobody thinks about" actually requires.
+- Install the **Server** image (no desktop) — it is the same kernel and package set with a couple of hundred MB less idle footprint and attack surface, and every command in this section assumes a shell, not a GUI.
+
+Two good alternatives, if either applies to you:
+
+- **Debian 12 (Bookworm)** — same apt/Docker-repo story as Ubuntu, a lighter base image, and an even more conservative update cadence. Pick this over Ubuntu if you would rather the OS itself changed less between now and whenever you next touch this VM.
+- **Rocky Linux 9** (or AlmaLinux 9) — for teams already standardized on RHEL-family tooling (`dnf`, `firewalld`, SELinux). Binary-compatible with RHEL, no license fee. Swap `apt` for `dnf` in the install commands below; everything else is identical, since it is all inside containers regardless of host distribution.
+
+A pilot for a few hundred people is comfortable on 2 vCPU / 4 GB RAM / 20 GB disk — see [Scaling](#scaling) for when to grow past that.
+
+**The one command**, once Docker itself is on the box:
+
+```bash
+./deploy.sh
+```
+
+It generates `.env.docker` with a random `AUTH_SECRET` (only on the first run — re-running never rotates an existing one, since that would sign every session out), builds the image, starts the stack, and waits for `/api/health` to answer before printing the URL. Re-running after a `git pull` rebuilds and restarts in place; nothing about it is one-shot-only.
+
+Don't have Docker yet? One line, then `./deploy.sh`:
+
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+
+*(Rocky/RHEL: `sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin && sudo systemctl enable --now docker` instead.)*
+
+Useful flags — `./deploy.sh --help` for the full list:
+
+| Flag | Effect |
+|---|---|
+| `--seed` | Load the demo dataset instead of starting empty |
+| `--port 8080` | Publish on a different host port (default 4400) |
+| `--org-name "Acme Inc"` | Sets the name shown in the UI |
+| `--domain lms.acme.internal` | Stands up Caddy in front and gets you a real HTTPS certificate automatically (see below) |
+| `--postgres` | Also start a PostgreSQL container instead of SQLite |
+
+Without `--seed`, the instance starts empty and **the first account anyone registers becomes the administrator** — no separate bootstrap step.
+
+**Automatic HTTPS.** Point DNS for a domain at the VM, open ports 80 and 443, then:
+
+```bash
+./deploy.sh --domain lms.example.com
+```
+
+This starts a Caddy container (see `Caddyfile`) that requests and renews a Let's Encrypt certificate on its own — no certbot, no cron job, no manual renewal, ever. Caddy validates the domain over port 80 before issuing, which is why DNS has to already be live. For an internal-only domain with no public DNS, `Caddyfile` has a one-line alternative using Caddy's own local CA instead — see the comment in that file.
+
+This matters beyond convenience: [session cookies only carry the `Secure` flag when the connection is actually HTTPS](#security-notes), so anyone reaching the app over plain HTTP has their session cookie readable by anything on the network path. Fine for a quick look on a trusted LAN; not fine for anything anyone will actually rely on. Put TLS in front before that point, either this way or with your own reverse proxy.
+
+**Under the hood**, `deploy.sh` is a thin wrapper — nothing it does is hidden or hard to reproduce by hand. A shell-exported variable takes precedence over the same key in `--env-file`, so this is equivalent to what the script does without needing to hand-edit `.env.docker` at all:
 
 ```bash
 export AUTH_SECRET=$(openssl rand -base64 32)
+docker compose --env-file .env.docker up -d --build
 ```
 
-```bash
-docker compose up -d
-```
+Health check: `GET /api/health` — returns 200 when the process is up and the database is reachable, 503 otherwise. Wired into both the Dockerfile `HEALTHCHECK` and the Compose service, and what `deploy.sh` polls before declaring success.
 
-That's the whole deployment — reachable on <http://127.0.0.1:4400>. SQLite lives on the `lumina-data` volume and uploads on `lumina-storage`, so both survive container replacement. The image uses Next.js `standalone` output and stays under 300 MB.
-
-Set `HOST_PORT` to publish on a different host port; the container port stays 4400.
-
-Health check: `GET /api/health` — returns 200 when the process is up and the database is reachable, 503 otherwise. Wired into both the Dockerfile `HEALTHCHECK` and the Compose service.
+SQLite lives on the `lumina-data` volume and uploads on `lumina-storage`, so both survive container replacement — a `docker compose down && ./deploy.sh` keeps all data. The image uses Next.js `standalone` output and stays under 300 MB.
 
 ### With PostgreSQL
 
-Set `provider = "postgresql"` in `prisma/schema.prisma`, then:
+Set `provider = "postgresql"` in `prisma/schema.prisma`, then either `./deploy.sh --postgres` or, by hand:
 
 ```bash
-docker compose --profile postgres up -d
+docker compose --env-file .env.docker --profile postgres up -d --build
 ```
 
 ### Bare Node
@@ -468,6 +518,7 @@ Worth knowing before you put this in front of real people:
 - **Login redirects are same-origin only,** so the `?next=` parameter can't be turned into an open redirect.
 - **Self-registration is on by default** for easy evaluation. For a real deployment, either set `AUTH_ALLOW_SELF_REGISTRATION=false` and provision from the admin console, or restrict `AUTH_ALLOWED_EMAIL_DOMAINS` to your corporate domain.
 - **`robots.txt` is not the access control.** The app sets `noindex`, but the real protection is that every route requires a session.
+- **The session cookie's `Secure` flag follows the actual connection, not `NODE_ENV`.** It is set when the request arrived over HTTPS — directly, or via a proxy that says so with `X-Forwarded-Proto` — and omitted otherwise. Tying it to `NODE_ENV=production` alone would mean a production build reached over plain HTTP (a LAN address, an internal host with no TLS yet) has its cookie silently discarded by the browser: sign-in appears to work and then bounces straight back to the login form, with nothing in the logs to explain why. Serving over plain HTTP in production logs a one-time warning instead of failing mutely — see [On-prem VM](#on-prem-vm-recommended) for putting real TLS in front.
 
 ### Recovering admin access
 

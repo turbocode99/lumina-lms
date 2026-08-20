@@ -22,6 +22,10 @@ public/uploads/
 .env.local
 .env*.local
 .env.production
+# Holds AUTH_SECRET (and, with --postgres, a DB password). Without this, a
+# plain `COPY . .` in the builder stage would bake the secret into an image
+# layer — recoverable from the image even after the file is deleted.
+.env.docker
 
 npm-debug.log*
 yarn-debug.log*

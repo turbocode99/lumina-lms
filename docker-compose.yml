@@ -1,14 +1,27 @@
 # ---------------------------------------------------------------------------
 # Lumina LMS — Docker Compose
 #
-# Two ways to run:
+# Easiest path: run ./deploy.sh from the repo root. It generates .env.docker
+# with a random AUTH_SECRET, then wraps the commands below with the right flags
+# and env file, and waits for the health check. See README.md for the one-line
+# version and the recommended host OS.
+#
+# Calling compose directly:
 #
 #   Default (SQLite, zero config beyond a secret):
-#     docker compose up -d
+#     docker compose --env-file .env.docker up -d --build
 #
 #   With PostgreSQL (for multi-instance or larger deployments):
 #     1. Set `provider = "postgresql"` in prisma/schema.prisma
-#     2. docker compose --profile postgres up -d
+#     2. docker compose --env-file .env.docker --profile postgres up -d --build
+#
+#   With automatic HTTPS via a public domain (Caddy + Let's Encrypt):
+#     1. Point DNS for the domain at this host; open ports 80 and 443.
+#     2. Set DOMAIN=lms.example.com in .env.docker
+#     3. docker compose --env-file .env.docker --profile proxy up -d --build
+#     The app's own port stays published for direct/internal access too — if you
+#     want HTTPS to be the only way in, firewall HOST_PORT from outside traffic
+#     (e.g. `ufw deny <port>`) or bind it to 127.0.0.1 in the ports line below.
 # ---------------------------------------------------------------------------
 
 services:
@@ -76,7 +89,29 @@ services:
       timeout: 5s
       retries: 5
 
+  # Optional reverse proxy with automatic Let's Encrypt HTTPS. Only started with
+  # `--profile proxy` (deploy.sh does this automatically when given --domain).
+  caddy:
+    image: caddy:2-alpine
+    container_name: lumina-caddy
+    profiles: ["proxy"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Caddy substitutes {$DOMAIN} in the Caddyfile from this at startup.
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env.docker to use the proxy profile, e.g. lms.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - lumina-caddy-data:/data
+      - lumina-caddy-config:/config
+    depends_on:
+      - app
+
 volumes:
   lumina-data:
   lumina-storage:
   lumina-postgres:
+  lumina-caddy-data:
+  lumina-caddy-config:

@@ -21,22 +21,35 @@ case "${DATABASE_URL:-}" in
     ;;
 esac
 
+# Both CLIs below are invoked as `node <entry point>` rather than via `npx`.
+# The runtime image intentionally ships no node_modules/.bin symlinks (only the
+# specific package directories each needs), and `npx` falls back to fetching
+# from the registry when it cannot resolve a command locally — silent on a
+# machine with internet access, a hang or a confusing failure on a locked-down
+# on-prem host with none. Direct invocation has exactly one resolution path.
+
 echo "→ Preparing database…"
 
 if [ -d "./prisma/migrations" ] && [ -n "$(ls -A ./prisma/migrations 2>/dev/null)" ]; then
-  npx prisma migrate deploy
+  node ./node_modules/prisma/build/index.js migrate deploy
 else
   echo "  No migrations found — syncing schema directly."
-  npx prisma db push --skip-generate --accept-data-loss
+  node ./node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss
 fi
 
 # Optional demo seed. Off by default: on a fresh deployment the first account to
 # register is made an administrator, which is the cleaner path for a real org.
-# Set SEED_ON_START=true to populate the demo dataset instead. Requires the dev
-# dependencies, so it only works on an image built with --target builder.
+# Set SEED_ON_START=true to populate the demo dataset, including the generated
+# thumbnails, lesson videos, and resource PDFs in demo-assets/.
 if [ "${SEED_ON_START:-false}" = "true" ]; then
-  echo "→ Seeding demo data…"
-  npx tsx prisma/seed.ts || echo "  Seed skipped (tsx unavailable in this image)."
+  if [ -f "./node_modules/tsx/dist/cli.mjs" ]; then
+    echo "→ Seeding demo data…"
+    node ./node_modules/tsx/dist/cli.mjs prisma/seed.ts
+  else
+    echo "  SEED_ON_START is true, but tsx is not present in this image — skipping."
+    echo "  This image was likely built from a Dockerfile that no longer copies"
+    echo "  node_modules/tsx into the runtime stage; see Dockerfile for the COPY line."
+  fi
 fi
 
 echo "→ Starting Lumina LMS on port ${PORT:-4400}"

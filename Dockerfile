@@ -64,6 +64,26 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modul
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 
+# The generated demo thumbnails/videos/PDFs that prisma/seed.ts installs when
+# SEED_ON_START=true. Without this, a Docker deployment run with the demo
+# seed would create the courses but silently skip every media file, since the
+# seed script resolves this path relative to its own runtime location and
+# finds nothing there.
+COPY --from=builder --chown=nextjs:nodejs /app/demo-assets ./demo-assets
+
+# tsx (plus its one real dependency, esbuild) so SEED_ON_START=true can run
+# prisma/seed.ts directly with `node`, with no dev dependencies or network
+# access needed at container start. Both packages are devDependencies, so the
+# standalone trace above does not pick them up on its own; they are pulled
+# from the builder stage's full node_modules instead. esbuild's native binary
+# is platform-specific, but since deps/builder/runner all share the same
+# node:22-alpine base, `npm ci` in the deps stage already resolved the correct
+# one — the same reasoning that lets Prisma's own native engine work here via
+# libc6-compat, installed above.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/esbuild ./node_modules/esbuild
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@esbuild ./node_modules/@esbuild
+
 # Volumes for the SQLite file and uploaded media.
 RUN mkdir -p /app/data /app/storage && chown -R nextjs:nodejs /app/data /app/storage
 
