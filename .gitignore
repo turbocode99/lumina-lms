@@ -46,6 +46,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Written by up.bat / stop.bat — local runtime state, never something to commit.
+.lumina.pid
+lumina-server.log
+lumina-server.err.log
+
 # typescript
 *.tsbuildinfo
 
