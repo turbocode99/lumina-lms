@@ -51,6 +51,10 @@ yarn-error.log*
 lumina-server.log
 lumina-server.err.log
 
+# Generated sales/board collateral — regenerable, and a 9.5 MB binary in git
+# history is permanent. Keep it out of the clone and the Docker build context.
+Lumina_LMS_Presentation.pdf
+
 # typescript
 *.tsbuildinfo
 
