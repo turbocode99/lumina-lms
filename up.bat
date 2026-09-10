@@ -6,23 +6,19 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 REM Every Windows tool below is invoked by its full System32 path rather than by
-REM bare name. Reason: several of them (find, timeout) share a name with a
-REM different GNU/coreutils tool that Git for Windows also installs, and on a
-REM machine where that Git install has been added to PATH ahead of System32 —
-REM which is common, and true of the shell this script was actually developed
-REM and tested in — the bare name silently resolves to the wrong program. Both
-REM collisions below were caught by hitting them directly, not by inspection:
-REM GNU find prints "No such file or directory" and exits at the "already
-REM running?" check instead of doing a text search, and GNU timeout rejects the
-REM "/t" flag and exits immediately, turning the health-check wait loop below
-REM into a busy-loop with no pacing. A fully-qualified path resolves the same
-REM way regardless of what else is on PATH.
+REM bare name. Reason: find shares a name with a different GNU/coreutils tool
+REM that Git for Windows also installs, and on a machine where that Git install
+REM has been added to PATH ahead of System32 — which is common, and true of the
+REM shell this script was actually developed and tested in — the bare name
+REM silently resolves to the wrong program. Caught by hitting it directly rather
+REM than by inspection: GNU find prints "No such file or directory" and exits at
+REM the "already running?" check instead of doing a text search. A fully-qualified
+REM path resolves the same way regardless of what else is on PATH.
 set "SYS=%SystemRoot%\System32"
 set "FIND=%SYS%\find.exe"
 set "FINDSTR=%SYS%\findstr.exe"
 set "TASKLIST=%SYS%\tasklist.exe"
 set "NETSTAT=%SYS%\netstat.exe"
-set "TIMEOUT=%SYS%\timeout.exe"
 set "POWERSHELL=%SYS%\WindowsPowerShell\v1.0\powershell.exe"
 
 set "PIDFILE=.lumina.pid"
@@ -99,7 +95,14 @@ set /a ATTEMPTS+=1
 "%POWERSHELL%" -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:!PORT!/api/health' -UseBasicParsing -TimeoutSec 2; exit 0 } catch { exit 1 }" >NUL 2>&1
 if !ERRORLEVEL! EQU 0 goto healthy
 if !ATTEMPTS! GEQ 40 goto timeout
-"%TIMEOUT%" /t 2 /nobreak >NUL
+REM Paced with PowerShell rather than timeout.exe on purpose. timeout.exe insists
+REM on a real console and aborts with "ERROR: Input redirection is not supported,
+REM exiting the process immediately." the moment stdin is redirected — which is
+REM what happens when up.bat runs from a CI job, a scheduled task, or another
+REM script rather than an interactive window. The loop still finished in that
+REM case, but printed that error on every pass and span with no pacing at all.
+REM Start-Sleep needs no console, so the wait behaves the same either way.
+"%POWERSHELL%" -NoProfile -Command "Start-Sleep -Seconds 2"
 goto waitloop
 
 :healthy
