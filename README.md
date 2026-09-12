@@ -281,9 +281,59 @@ case "s3": return new S3StorageDriver({ bucket: process.env.S3_BUCKET! });
 
 Then set `STORAGE_DRIVER=s3`.
 
-### Adding SSO
+### Single sign-on (OIDC)
 
-The credential flow and the session helpers are decoupled on purpose: anything that can resolve an external identity to a local user row can open a session. `src/lib/providers/oidc.ts` is a working stub with the four steps written out — register the app, add the env vars, add a callback route that verifies the ID token against the issuer's JWKS (`jose` is already a dependency), and add a button. `signInWithExternalIdentity()` handles provisioning and session creation.
+SSO is built in. Set three environment variables and the login page grows a
+sign-in button; leave them unset and Lumina stays password-only, with no route,
+button, or behaviour change.
+
+```bash
+OIDC_ISSUER="https://login.microsoftonline.com/<tenant-id>/v2.0"
+OIDC_CLIENT_ID="..."
+OIDC_CLIENT_SECRET="..."
+```
+
+Register this redirect URI with your provider:
+
+```
+https://<your-host>/api/auth/callback/oidc
+```
+
+Anything that publishes a discovery document at
+`<issuer>/.well-known/openid-configuration` works — Azure AD, Okta, Google
+Workspace, Keycloak, Auth0. Endpoints, signing keys, and the client
+authentication method are all read from it, so there is nothing per-provider to
+configure.
+
+**Provisioning.** By default an account must already exist: someone who
+authenticates successfully but has no Lumina user is turned away rather than
+created. That is the stricter posture, and usually the right one, because an
+IdP generally covers more people than should have access to any single internal
+tool. Set `OIDC_AUTO_PROVISION="true"` to create accounts on first sign-in
+instead; `OIDC_DEFAULT_ROLE` picks what they get (`LEARNER` by default), and
+`AUTH_ALLOWED_EMAIL_DOMAINS` still restricts which domains may be created.
+Existing accounts are never subject to the domain rule — an admin who
+deliberately added a contractor on another domain should not be locked out by a
+setting meant to govern self-service.
+
+**What the flow does.** Authorization code with PKCE. Every sign-in carries a
+`state` (CSRF), a `nonce` (replay), and an S256 challenge, all minted server-side
+and parked in one short-lived signed cookie while the browser is at the IdP. The
+returned ID token is verified against the issuer's published JWKS and checked for
+the right issuer, audience, and nonce before any account is touched. A callback
+that arrives without a matching transaction is rejected before the token endpoint
+is called at all.
+
+An account is matched on email. A provider that explicitly reports
+`email_verified: false` is refused, since an unverified address would otherwise
+be a way onto an existing account. Providers that omit the claim entirely — which
+many enterprise directories do for directory-backed accounts — are accepted.
+
+**Where the code lives.** `src/lib/providers/oidc-client.ts` is the protocol:
+discovery, authorize URL, code exchange, token verification.
+`src/lib/providers/oidc.ts` is the account mapping, and knows nothing about OIDC
+— swapping in SAML or a header-based proxy means writing a new caller, not
+editing it. The two route handlers under `src/app/api/auth/` join them up.
 
 ---
 
@@ -427,7 +477,7 @@ lumina-lms/
 │   │   │   ├── instructor/       ← builder
 │   │   │   └── admin/            ← console
 │   │   ├── actions/              ← auth, learning, authoring, admin
-│   │   └── api/                  ← media streaming, health
+│   │   └── api/                  ← media streaming, health, SSO routes
 │   ├── components/
 │   │   ├── ui/                   ← neumorphic primitives
 │   │   ├── shell/  course/  player/  instructor/  admin/
@@ -436,7 +486,8 @@ lumina-lms/
 │       ├── progress.ts           ← the only writer of cached progress
 │       ├── notify.ts  enums.ts  json.ts  validators.ts  utils.ts
 │       ├── storage/              ← pluggable driver + local implementation
-│       └── providers/oidc.ts     ← SSO stub
+│       └── providers/              ← SSO: oidc.ts maps accounts,
+│                                     oidc-client.ts speaks OIDC
 └── Dockerfile · docker-compose.yml · .github/workflows/ci.yml
 ```
 
@@ -557,7 +608,6 @@ Delete `demo-assets/` if you don't want any of it; the seed reports what is miss
 
 Deliberately out of scope for v1, in rough order of usefulness:
 
-- SSO wired end-to-end (the provider interface is ready; the callback route is not)
 - Email transport for notifications — `src/lib/notify.ts` is the single seam
 - SCORM / xAPI import for existing course libraries
 - Video transcripts and caption tracks
