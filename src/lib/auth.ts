@@ -1,7 +1,7 @@
 import "server-only";
 
 import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
 
@@ -17,9 +17,9 @@ import type { Role } from "@/lib/enums";
  * render re-reads the user row, so a role change or deactivation takes effect on
  * the next request rather than waiting for the token to expire.
  *
- * Adding SSO: implement a provider in `src/lib/providers/` that resolves an
- * external identity to a local User row, then call `createSession(user.id)`.
- * See `src/lib/providers/oidc.ts` for a worked stub.
+ * SSO rides on exactly this: `src/lib/providers/oidc.ts` resolves an external
+ * identity to a local User row and then calls `createSession()`, which is why
+ * an SSO session and a password session are indistinguishable everywhere else.
  */
 
 const COOKIE_NAME = "lumina_session";
@@ -109,6 +109,39 @@ export async function verifySessionToken(
 }
 
 /**
+ * Short-lived signed tokens for flows that need to hand state to a third party
+ * and get it back intact — currently the SSO round trip, which parks its state,
+ * nonce, and PKCE verifier in a cookie while the browser is at the IdP.
+ *
+ * They share the session secret but are not sessions: they carry no subject and
+ * cannot be presented as one, because `verifySessionToken` requires a `sub` that
+ * these never set.
+ */
+export async function signShortLivedToken(
+  claims: Record<string, unknown>,
+  ttlSeconds: number
+): Promise<string> {
+  return new SignJWT(claims as JWTPayload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${ttlSeconds}s`)
+    .sign(secretKey());
+}
+
+export async function verifyShortLivedToken(
+  token: string
+): Promise<JWTPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, secretKey(), {
+      algorithms: ["HS256"],
+    });
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Whether the browser reached us over TLS.
  *
  * This decides the cookie's `Secure` flag, and getting it wrong is unusually
@@ -123,7 +156,7 @@ export async function verifySessionToken(
  * HTTPS (directly, or via a proxy that says so), and omitted otherwise. `httpOnly`
  * and `sameSite` are unconditional either way.
  */
-async function isSecureRequest(): Promise<boolean> {
+export async function isSecureRequest(): Promise<boolean> {
   const list = await headers();
 
   // Set by essentially every reverse proxy; may be a comma-separated chain.

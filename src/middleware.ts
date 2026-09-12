@@ -44,9 +44,15 @@ export const config = {
   matcher: [
     /**
      * Everything except Next internals, static assets, the media route (which
-     * streams video and does its own auth), and the health probe (which must
-     * answer load balancers without a session).
+     * streams video and does its own auth), the health probe (which must answer
+     * load balancers without a session), and the SSO routes.
+     *
+     * SSO has to be excluded rather than added to PUBLIC_PATHS: the visitor
+     * starting it has no session, so the redirect below would bounce them to
+     * /login before the handler ever ran — and the visitor *returning* from the
+     * IdP does have one by then, which the signed-in branch would send to
+     * /dashboard, dropping the `next` they were originally headed for.
      */
-    "/((?!api/media|api/health|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)",
+    "/((?!api/media|api/health|api/auth|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)",
   ],
 };
