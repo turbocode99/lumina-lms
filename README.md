@@ -127,6 +127,7 @@ Password for all seeded accounts: `Password123!`
 | **Reviews** | 1–5 stars with optional comment, restricted to enrolled learners, one per person, editable |
 | **Learning paths** | Ordered course tracks with a connected step rail; enrolling in a path enrolls you in every course it contains |
 | **Certificates** | Auto-issued on completion, with a unique verification serial and a print/PDF stylesheet |
+| **Leaderboard** | Top ten by courses completed, over a rolling 30 or 90 days or all time, with your own standing shown privately. Deliberately no full ranking |
 | **Notifications** | In-app feed for assignments, due dates, answers, reviews, and certificates, with optional email for the ones carrying a deadline or a result |
 
 ### For instructors
@@ -245,6 +246,27 @@ export const luminaConfig: LuminaConfig = {
 ```
 
 Feature flags gate whole routes *and* their navigation entries — turning off `learningPaths` removes the sidebar item, the learner pages, and the admin console section together, and the assignment UI stops offering paths as a target.
+
+### The leaderboard
+
+Ranked on courses completed, with lessons completed as the tiebreaker so steady
+progress through a long course still counts. The window is rolling — thirty or
+ninety days back from today, or all time — rather than calendar months, which
+would leave the board empty every first of the month and unbeatable by the 28th.
+
+Two things it deliberately does not do.
+
+It shows a top ten and stops. A complete ordering of everyone is also, read from
+the bottom, a published list of who has done least, which inside a company is a
+different artefact from a scoreboard. Admins who need the whole picture have the
+CSV exports.
+
+A viewer sees their own standing, and only their own, and only once they have
+something on the board. Telling someone they are last is not motivating, and it
+is the one thing this surface could do that nobody asked for.
+
+Turn the whole thing off with the `leaderboard` flag: the route 404s and the sidebar
+entry disappears, like every other flag.
 
 ### Theming
 
@@ -687,7 +709,6 @@ Deliberately out of scope for v1, in rough order of usefulness:
 
 - SCORM / xAPI import for existing course libraries
 - Video transcripts and caption tracks
-- Gamification surface for the `leaderboard` flag that's already in config
 - Scheduled reminder job (currently an admin-triggered button)
 
 ---
