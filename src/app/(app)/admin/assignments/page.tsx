@@ -8,6 +8,7 @@ import {
   sendDueRemindersAction,
 } from "@/app/actions/admin";
 import { AssignmentManager } from "@/components/admin/AssignmentManager";
+import { ExportButton } from "@/components/admin/ExportButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -100,12 +101,15 @@ export default async function AdminAssignmentsPage({
           </p>
         </div>
 
-        <form action={sendDueRemindersAction}>
-          <Button type="submit">
-            <BellRing className="h-4 w-4" />
-            Send due reminders
-          </Button>
-        </form>
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportButton report="assignments" status={status} />
+          <form action={sendDueRemindersAction}>
+            <Button type="submit">
+              <BellRing className="h-4 w-4" />
+              Send due reminders
+            </Button>
+          </form>
+        </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">

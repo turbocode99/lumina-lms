@@ -16,6 +16,7 @@ import {
   EnrollmentsByCategoryChart,
   TopCoursesChart,
 } from "@/components/admin/AdminCharts";
+import { ExportButton } from "@/components/admin/ExportButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card, CardTitle, StatCard } from "@/components/ui/Card";
 import { Progress } from "@/components/ui/Progress";
@@ -142,13 +143,17 @@ export default async function AdminOverviewPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-7">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-          Organisation overview
-        </h1>
-        <p className="mt-2 text-[var(--text-secondary)]">
-          How learning is tracking across {luminaConfig.brand.organization}.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+            Organisation overview
+          </h1>
+          <p className="mt-2 text-[var(--text-secondary)]">
+            How learning is tracking across {luminaConfig.brand.organization}.
+          </p>
+        </div>
+
+        <ExportButton report="enrollments" label="Export enrolments" />
       </header>
 
       {/* Headline metrics */}
