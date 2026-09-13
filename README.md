@@ -146,6 +146,7 @@ Password for all seeded accounts: `Password123!`
 - **Categories** — name, colour, and icon, driving catalog chips and chart colours
 - **Learning paths** — build and sequence tracks, publish/unpublish
 - **Required training** — assign a course or path to any set of people filtered by department, with a due date and note. Assigning also enrolls, so it appears in My Learning immediately. Register view shows open, due-soon, overdue, and completed, with a one-click reminder blast
+- **CSV export** — required training, enrolments and progress, or certificates, as a spreadsheet. Exports the whole set rather than the page you are looking at, and the required-training export carries whatever filter is applied
 
 ---
 
@@ -280,6 +281,37 @@ case "s3": return new S3StorageDriver({ bucket: process.env.S3_BUCKET! });
 ```
 
 Then set `STORAGE_DRIVER=s3`.
+
+### Compliance exports
+
+Three CSV reports, from the admin screens that already show the same data:
+
+| Report | Where | Covers |
+|---|---|---|
+| Required training | Required training | Every assignment: person, department, what was assigned, status, due date, days overdue, who assigned it |
+| Enrolments and progress | Organisation overview | Every enrolment with progress percent, source, and completion dates |
+| Certificates | Certificates | Every certificate with its verification serial |
+
+They are admin-only, and taking one is written to the activity log next to every
+other admin action — an export carries names, emails, and departments out of the
+system, so who took it is worth recording.
+
+The screens cap their tables at 150 and 200 rows because nobody scrolls past
+that, which is exactly why the exports do not inherit the cap. They read the
+whole set in pages and stream the response, so a year of records does not have
+to be assembled in memory first. The required-training export carries whatever
+`?status=` filter the register is showing, so what you download matches what you
+were looking at.
+
+Dates are ISO 8601 to the millisecond: lossless for audit, and unreadable as
+day/month in one country and month/day in another. Files open with a byte order
+mark so Excel reads them as UTF-8 rather than mangling every non-ASCII name.
+
+Values beginning `=`, `+`, `-`, or `@` are prefixed with an apostrophe. A
+spreadsheet treats those as formulas, and a course titled `=HYPERLINK(...)` would
+otherwise execute when an administrator opens a file they have every reason to
+trust. Numbers are written as numbers and skip that guard, so a negative value
+stays negative rather than turning into text.
 
 ### Email notifications
 
@@ -520,7 +552,7 @@ lumina-lms/
 │   │   │   ├── instructor/       ← builder
 │   │   │   └── admin/            ← console
 │   │   ├── actions/              ← auth, learning, authoring, admin
-│   │   └── api/                  ← media streaming, health, SSO routes
+│   │   └── api/                  ← media, health, SSO, CSV exports
 │   ├── components/
 │   │   ├── ui/                   ← neumorphic primitives
 │   │   ├── shell/  course/  player/  instructor/  admin/
@@ -528,6 +560,7 @@ lumina-lms/
 │       ├── auth.ts  rbac.ts      ← sessions and authorization
 │       ├── progress.ts           ← the only writer of cached progress
 │       ├── notify.ts  enums.ts  json.ts  validators.ts  utils.ts
+       ├── csv.ts  reports.ts     ← compliance exports
 │       ├── storage/              ← pluggable driver + local implementation
        ├── email/                ← pluggable driver + console/SMTP
 │       └── providers/              ← SSO: oidc.ts maps accounts,
@@ -654,7 +687,6 @@ Deliberately out of scope for v1, in rough order of usefulness:
 
 - SCORM / xAPI import for existing course libraries
 - Video transcripts and caption tracks
-- CSV export for compliance reporting
 - Gamification surface for the `leaderboard` flag that's already in config
 - Scheduled reminder job (currently an admin-triggered button)
 

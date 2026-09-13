@@ -45,7 +45,13 @@ export const config = {
     /**
      * Everything except Next internals, static assets, the media route (which
      * streams video and does its own auth), the health probe (which must answer
-     * load balancers without a session), and the SSO routes.
+     * load balancers without a session), the SSO routes, and the admin exports.
+     *
+     * The exports are excluded for the same reason as media: they do their own
+     * authorization and need to answer with status codes. Left in, an
+     * unauthenticated request for a CSV would be redirected to an HTML login
+     * page with a 307, which a browser handles fine but anything scripting the
+     * monthly compliance pull would have to parse to discover it had failed.
      *
      * SSO has to be excluded rather than added to PUBLIC_PATHS: the visitor
      * starting it has no session, so the redirect below would bounce them to
@@ -53,6 +59,6 @@ export const config = {
      * IdP does have one by then, which the signed-in branch would send to
      * /dashboard, dropping the `next` they were originally headed for.
      */
-    "/((?!api/media|api/health|api/auth|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)",
+    "/((?!api/media|api/health|api/auth|api/admin|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)",
   ],
 };

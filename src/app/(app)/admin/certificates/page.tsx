@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Award, Route, Search } from "lucide-react";
 
+import { ExportButton } from "@/components/admin/ExportButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardTitle, StatCard } from "@/components/ui/Card";
@@ -64,13 +65,17 @@ export default async function AdminCertificatesPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-          Certificates
-        </h1>
-        <p className="mt-2 text-[var(--text-secondary)]">
-          Every certificate issued across {luminaConfig.brand.organization}.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+            Certificates
+          </h1>
+          <p className="mt-2 text-[var(--text-secondary)]">
+            Every certificate issued across {luminaConfig.brand.organization}.
+          </p>
+        </div>
+
+        <ExportButton report="certificates" />
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">
