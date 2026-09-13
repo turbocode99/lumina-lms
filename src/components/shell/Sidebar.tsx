@@ -15,6 +15,7 @@ import {
   PenSquare,
   Route,
   ShieldCheck,
+  Trophy,
   Users,
   X,
 } from "lucide-react";
@@ -70,6 +71,12 @@ function buildNav(): NavGroup[] {
           label: "Certificates",
           icon: <Award className="h-[18px] w-[18px]" />,
           enabled: features.certificates,
+        },
+        {
+          href: "/leaderboard",
+          label: "Leaderboard",
+          icon: <Trophy className="h-[18px] w-[18px]" />,
+          enabled: features.leaderboard,
         },
       ],
     },

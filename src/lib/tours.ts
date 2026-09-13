@@ -202,6 +202,35 @@ export const TOURS: Tour[] = [
     ],
   },
 
+  {
+    id: "leaderboard-v1",
+    name: "Leaderboard",
+    route: "/leaderboard",
+    exact: true,
+    steps: [
+      {
+        target: "leaderboard-period",
+        title: "A rolling window, not a calendar one",
+        body: "Thirty or ninety days back from today, so the board never resets to empty on the first of the month. The period is part of the address, so you can link someone straight to the view you mean.",
+        placement: "bottom",
+      },
+      {
+        target: "leaderboard-you",
+        title: "Your standing is yours",
+        body: "Where you sit among everyone with activity this period. Nobody else sees this row — the public list is the top ten only, and there is deliberately no full ranking.",
+        placement: "bottom",
+        optional: true,
+      },
+      {
+        target: "leaderboard-list",
+        title: "Courses first, then lessons",
+        body: "Ties on completed courses are broken by lessons finished, so steady progress through a long course still counts for something.",
+        placement: "top",
+        optional: true,
+      },
+    ],
+  },
+
   /* ------------------------------------------------------------------ */
   /* Instructor                                                          */
   /* ------------------------------------------------------------------ */
