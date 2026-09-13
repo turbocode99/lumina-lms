@@ -43,22 +43,29 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /**
-     * Everything except Next internals, static assets, the media route (which
-     * streams video and does its own auth), the health probe (which must answer
-     * load balancers without a session), the SSO routes, and the admin exports.
+     * Pages, and nothing else: Next internals, static assets and the whole of
+     * `/api` are excluded.
      *
-     * The exports are excluded for the same reason as media: they do their own
-     * authorization and need to answer with status codes. Left in, an
-     * unauthenticated request for a CSV would be redirected to an HTML login
-     * page with a 307, which a browser handles fine but anything scripting the
-     * monthly compliance pull would have to parse to discover it had failed.
+     * This gate only checks that a cookie is *present*, which is worth nothing
+     * as authorization — so no API route should ever have relied on it, and
+     * none does. Every one authorizes for itself: media and the admin exports
+     * check the session and the role, the cron sweep checks a shared secret, the
+     * health probe is deliberately public, and the SSO handlers run for visitors
+     * who by definition have no session yet.
      *
-     * SSO has to be excluded rather than added to PUBLIC_PATHS: the visitor
-     * starting it has no session, so the redirect below would bounce them to
-     * /login before the handler ever ran — and the visitor *returning* from the
-     * IdP does have one by then, which the signed-in branch would send to
-     * /dashboard, dropping the `next` they were originally headed for.
+     * What being listed here would actually do to them is worse than nothing.
+     * An unauthenticated API request gets a 307 to an HTML login page instead of
+     * a status code — fine in a browser, useless to the scheduler running the
+     * nightly sweep or the script pulling the monthly compliance CSV, both of
+     * which would have to parse HTML to discover they had failed. The SSO
+     * callback is worse still: the returning visitor now *has* a session, so the
+     * signed-in branch would send them to /dashboard and silently drop the
+     * `next` they were originally headed for.
+     *
+     * Excluding the prefix wholesale rather than route by route also means the
+     * next API route added is correct by default instead of correct if somebody
+     * remembers to come back here.
      */
-    "/((?!api/media|api/health|api/auth|api/admin|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)",
   ],
 };

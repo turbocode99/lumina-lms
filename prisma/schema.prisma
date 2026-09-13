@@ -418,6 +418,11 @@ model Assignment {
   note         String?
   completedAt  DateTime?
   createdAt    DateTime  @default(now())
+  /// When a due-soon or overdue reminder last went out for this assignment.
+  /// The reminder sweep claims rows by stamping this before sending, which is
+  /// what stops a daily schedule re-nagging the same person every run and what
+  /// keeps two app instances from both reminding the same people.
+  lastRemindedAt DateTime?
 
   user       User          @relation("AssignmentTarget", fields: [userId], references: [id], onDelete: Cascade)
   assignedBy User          @relation("AssignmentAuthor", fields: [assignedById], references: [id], onDelete: Cascade)

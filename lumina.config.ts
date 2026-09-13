@@ -79,6 +79,12 @@ export interface LuminaConfig {
     certificateThreshold: number;
     /** Days before a due date that a reminder notification fires. */
     dueSoonReminderDays: number;
+    /**
+     * Minimum days between reminders for the same assignment. Without this a
+     * daily schedule would tell the same person their training is overdue every
+     * morning until they did it, which is how a notification becomes noise.
+     */
+    reminderRepeatDays: number;
   };
   catalog: {
     pageSize: number;
@@ -138,6 +144,7 @@ export const luminaConfig: LuminaConfig = {
     quizMaxAttempts: 3,
     certificateThreshold: 100,
     dueSoonReminderDays: 7,
+    reminderRepeatDays: 3,
   },
 
   catalog: {

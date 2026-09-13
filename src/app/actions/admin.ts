@@ -7,6 +7,7 @@ import { assertRole } from "@/lib/rbac";
 import { hashPassword } from "@/lib/auth";
 import { logActivity, notify, notifyMany } from "@/lib/notify";
 import { recalcPathProgress } from "@/lib/progress";
+import { runDueReminders } from "@/lib/reminders";
 import { slugify, uniqueSlug } from "@/lib/utils";
 import {
   assignmentSchema,
@@ -558,48 +559,26 @@ export async function deleteAssignmentAction(formData: FormData): Promise<void> 
 }
 
 /** Nudges everyone with an open assignment that's overdue or due soon. */
+/**
+ * The button now runs the same sweep as the schedule, rather than its own copy.
+ *
+ * Two behaviours change as a result, both deliberate. It honours
+ * `dueSoonReminderDays` instead of a hardcoded seven, which is what that setting
+ * always claimed to control. And it no longer re-notifies people it reminded in
+ * the last `reminderRepeatDays` — pressing it twice used to send everything
+ * twice, which mattered little when reminders were only in-app and matters
+ * considerably now that they can be email.
+ */
 export async function sendDueRemindersAction(): Promise<void> {
   const admin = await assertRole("ADMIN");
 
-  const horizon = new Date();
-  horizon.setDate(horizon.getDate() + 7);
-
-  const due = await db.assignment.findMany({
-    where: {
-      completedAt: null,
-      dueAt: { not: null, lte: horizon },
-    },
-    include: {
-      course: { select: { title: true, slug: true } },
-      path: { select: { title: true, slug: true } },
-    },
-  });
-
-  const now = Date.now();
-
-  await notifyMany(
-    due.map((assignment) => {
-      const overdue = assignment.dueAt!.getTime() < now;
-      const title = assignment.course?.title ?? assignment.path?.title ?? "Training";
-      return {
-        userId: assignment.userId,
-        type: (overdue ? "OVERDUE" : "DUE_SOON") as "OVERDUE" | "DUE_SOON",
-        title: overdue ? `Overdue: ${title}` : `Due soon: ${title}`,
-        body: `Due ${assignment.dueAt!.toLocaleDateString()}.`,
-        link: assignment.course
-          ? `/courses/${assignment.course.slug}`
-          : assignment.path
-            ? `/paths/${assignment.path.slug}`
-            : "/my-learning",
-      };
-    })
-  );
+  const run = await runDueReminders();
 
   await logActivity({
     userId: admin.id,
     action: "training.remind",
     entity: "assignment",
-    meta: { count: due.length },
+    meta: { count: run.sent, overdue: run.overdue, skipped: run.skipped },
   });
 
   revalidatePath("/admin/assignments");

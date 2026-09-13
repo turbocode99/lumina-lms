@@ -146,7 +146,7 @@ Password for all seeded accounts: `Password123!`
 - **Course moderation** — publish, archive, or edit any course regardless of author
 - **Categories** — name, colour, and icon, driving catalog chips and chart colours
 - **Learning paths** — build and sequence tracks, publish/unpublish
-- **Required training** — assign a course or path to any set of people filtered by department, with a due date and note. Assigning also enrolls, so it appears in My Learning immediately. Register view shows open, due-soon, overdue, and completed, with a one-click reminder blast
+- **Required training** — assign a course or path to any set of people filtered by department, with a due date and note. Assigning also enrolls, so it appears in My Learning immediately. Register view shows open, due-soon, overdue, and completed, with reminders on a one-click button or a schedule
 - **CSV export** — required training, enrolments and progress, or certificates, as a spreadsheet. Exports the whole set rather than the page you are looking at, and the required-training export carries whatever filter is applied
 
 ---
@@ -334,6 +334,48 @@ spreadsheet treats those as formulas, and a course titled `=HYPERLINK(...)` woul
 otherwise execute when an administrator opens a file they have every reason to
 trust. Numbers are written as numbers and skip that guard, so a negative value
 stays negative rather than turning into text.
+
+### Scheduled reminders
+
+Due-soon and overdue reminders can run on a schedule rather than waiting for an
+admin to press the button. Set `CRON_SECRET` and point whatever already schedules
+things at the endpoint:
+
+```bash
+0 8 * * *  curl -fsS -X POST https://lms.example.com/api/cron/reminders \
+             -H "Authorization: Bearer $CRON_SECRET"
+```
+
+An endpoint rather than a timer inside the app, and that is the decision rather
+than a shortcut. Scaling above has two or more instances behind a load balancer
+from five hundred people upward; a timer in a web process would run on every one
+of them, die with the process, and have nowhere to report a failure except the
+log. Cron, a systemd timer, a Kubernetes CronJob, Windows Task Scheduler, or a
+hosted cron service all already exist wherever this lands, and all of them can
+shout when a job fails.
+
+With no secret set the endpoint answers 503 and stays closed. An open version of
+it would let anyone on the internet mail everyone with overdue training.
+
+**Running it twice is safe, and that is the point.** The sweep *claims* rows
+before sending anything: one update stamps every eligible assignment, and only
+rows carrying that exact stamp are notified. A second run arriving a moment
+later matches nothing. That is what lets a daily schedule coexist with two app
+instances and an admin pressing the button, without anyone being reminded twice.
+
+The same guard is what stops a daily schedule nagging: `reminderRepeatDays` in
+`lumina.config.ts` (three by default) is the minimum gap between reminders for
+the same assignment, so an overdue item is chased every few days rather than
+every morning until it is done.
+
+The trade-off in claiming first is that a crash between claiming and sending
+costs those people one cycle rather than sending twice. For a nag that is the
+right way round.
+
+The button on the required-training screen now runs exactly this sweep, so it
+honours both settings too — pressing it twice no longer sends everything twice,
+which mattered little when reminders were in-app only and matters considerably
+now they can be email.
 
 ### Email notifications
 
@@ -709,7 +751,6 @@ Deliberately out of scope for v1, in rough order of usefulness:
 
 - SCORM / xAPI import for existing course libraries
 - Video transcripts and caption tracks
-- Scheduled reminder job (currently an admin-triggered button)
 
 ---
 
