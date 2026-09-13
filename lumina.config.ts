@@ -7,6 +7,21 @@
  * the taxonomy arrays drive the seed data and admin dropdowns.
  */
 
+/**
+ * Mirrors NOTIFICATION_TYPES in `src/lib/enums.ts`. Restated rather than
+ * imported to keep this file free of `src` imports, as everything else here is;
+ * `src/lib/notify.ts` asserts at compile time that the two stay in step.
+ */
+export type NotificationKind =
+  | "ASSIGNMENT"
+  | "DUE_SOON"
+  | "OVERDUE"
+  | "ANSWER"
+  | "REVIEW"
+  | "CERTIFICATE"
+  | "ENROLLMENT"
+  | "SYSTEM";
+
 export type FeatureFlag =
   | "catalog"
   | "learningPaths"
@@ -47,6 +62,12 @@ export interface LuminaConfig {
     radius: number;
   };
   features: Record<FeatureFlag, boolean>;
+  /**
+   * Which notifications are worth someone's inbox. Everything still appears in
+   * the in-app feed regardless — this only decides what additionally goes out by
+   * email, and only when EMAIL_DRIVER is configured.
+   */
+  emailNotifications: readonly NotificationKind[];
   learning: {
     /** A lesson counts as complete once the learner passes this watch ratio. */
     videoCompletionThreshold: number;
@@ -99,6 +120,17 @@ export const luminaConfig: LuminaConfig = {
     leaderboard: true,
     selfEnrollment: true,
   },
+
+  /**
+   * Defaults to the four that carry a deadline or a result — the ones people are
+   * accountable for and would reasonably be annoyed to miss.
+   *
+   * ANSWER, REVIEW, ENROLLMENT, and SYSTEM are in-app only on purpose. A busy
+   * course can produce dozens of answers a day, and a tool that fills an inbox
+   * with things nobody has to act on is a tool people set up a mail rule to
+   * ignore — at which point the assignment and overdue mail stops landing too.
+   */
+  emailNotifications: ["ASSIGNMENT", "DUE_SOON", "OVERDUE", "CERTIFICATE"],
 
   learning: {
     videoCompletionThreshold: 0.9,
