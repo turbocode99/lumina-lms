@@ -127,7 +127,7 @@ Password for all seeded accounts: `Password123!`
 | **Reviews** | 1–5 stars with optional comment, restricted to enrolled learners, one per person, editable |
 | **Learning paths** | Ordered course tracks with a connected step rail; enrolling in a path enrolls you in every course it contains |
 | **Certificates** | Auto-issued on completion, with a unique verification serial and a print/PDF stylesheet |
-| **Notifications** | In-app feed for assignments, due dates, answers, reviews, and certificates |
+| **Notifications** | In-app feed for assignments, due dates, answers, reviews, and certificates, with optional email for the ones carrying a deadline or a result |
 
 ### For instructors
 
@@ -280,6 +280,49 @@ case "s3": return new S3StorageDriver({ bucket: process.env.S3_BUCKET! });
 ```
 
 Then set `STORAGE_DRIVER=s3`.
+
+### Email notifications
+
+Off by default. Everything still reaches the in-app feed; `EMAIL_DRIVER` decides
+whether anything additionally goes to an inbox.
+
+```bash
+EMAIL_DRIVER="smtp"
+APP_URL="https://lms.example.com"
+EMAIL_FROM="Lumina <learning@example.com>"
+SMTP_HOST="smtp.example.com"
+```
+
+Port defaults to 587, TLS mode is inferred from it (465 implicit, 587 and 25
+STARTTLS), and omitting `SMTP_USER`/`SMTP_PASSWORD` sends unauthenticated —
+which is how most internal relays accept mail from inside the network.
+
+`APP_URL` is what turns a notification's `/courses/x` into something clickable
+from an inbox. Without it mail still goes out, with a warning and no link.
+
+**Developing against it.** `EMAIL_DRIVER="console"` prints each message to the
+server log instead of sending — the whole pipeline, nothing leaving the machine.
+Worth using, given that the failure mode of this feature is mailing real staff.
+
+**What sends.** `emailNotifications` in `lumina.config.ts`, defaulting to
+`ASSIGNMENT`, `DUE_SOON`, `OVERDUE`, and `CERTIFICATE` — the four that carry a
+deadline or a result. Answers, reviews, and enrolments stay in-app: a busy course
+produces dozens of answers a day, and a tool that fills an inbox with things
+nobody has to act on gets a mail rule written against it, at which point the
+overdue-compliance mail stops landing too.
+
+Deactivated accounts are skipped. They still get the notification row, because
+the record of what was assigned matters for audit, but an offboarded person does
+not get the mail.
+
+**Where it runs.** Delivery happens after the response, via `after()` — assigning
+training to a 200-person department is 200 messages, and nobody should watch a
+spinner for the length of an SMTP batch. Failures are logged and swallowed: the
+notification is already written and the admin's action already succeeded, so a
+relay being down is not a reason to fail either.
+
+To send through Postmark, SES, or Resend instead, implement `send` in a new file
+under `src/lib/email/` and register it — same shape as the storage driver.
 
 ### Single sign-on (OIDC)
 
@@ -486,6 +529,7 @@ lumina-lms/
 │       ├── progress.ts           ← the only writer of cached progress
 │       ├── notify.ts  enums.ts  json.ts  validators.ts  utils.ts
 │       ├── storage/              ← pluggable driver + local implementation
+       ├── email/                ← pluggable driver + console/SMTP
 │       └── providers/              ← SSO: oidc.ts maps accounts,
 │                                     oidc-client.ts speaks OIDC
 └── Dockerfile · docker-compose.yml · .github/workflows/ci.yml
@@ -608,7 +652,6 @@ Delete `demo-assets/` if you don't want any of it; the seed reports what is miss
 
 Deliberately out of scope for v1, in rough order of usefulness:
 
-- Email transport for notifications — `src/lib/notify.ts` is the single seam
 - SCORM / xAPI import for existing course libraries
 - Video transcripts and caption tracks
 - CSV export for compliance reporting
