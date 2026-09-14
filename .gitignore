@@ -55,6 +55,12 @@ lumina-server.err.log
 # history is permanent. Keep it out of the clone and the Docker build context.
 Lumina_LMS_Presentation.pdf
 
+# The brand film and its full-resolution stills, for the same reason: together
+# they are ~100 MB of pure output. marketing/pipeline/ regenerates both from the
+# committed script and the web-resolution stills, so nothing here is lost.
+/marketing/*.mp4
+/marketing/shots/
+
 # typescript
 *.tsbuildinfo
 
