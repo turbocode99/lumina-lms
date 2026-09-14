@@ -68,6 +68,9 @@ export default async function CourseBuilderPage({
             lessons: {
               orderBy: { order: "asc" },
               include: {
+                scormPackage: {
+                  select: { title: true, version: true, fileCount: true, sizeBytes: true },
+                },
                 questions: {
                   orderBy: { order: "asc" },
                   include: { options: { orderBy: { order: "asc" } } },

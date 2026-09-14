@@ -35,6 +35,21 @@ export interface StorageDriver {
   ): Promise<StoredObject>;
 
   /**
+   * Writes bytes at an exact key, rather than generating one.
+   *
+   * `put` invents a key, which is right for a single upload and wrong for a
+   * SCORM package, where the files reference each other by relative path and
+   * have to keep the layout the author gave them.
+   *
+   * Implementations must reject keys that escape the storage root: these paths
+   * come from inside a ZIP written by someone else.
+   */
+  putAt(key: string, data: Uint8Array, contentType: string): Promise<void>;
+
+  /** Removes every object under a key prefix. Used when a package is replaced. */
+  deletePrefix(prefix: string): Promise<void>;
+
+  /**
    * Opens an object for reading. `range` supports HTTP range requests, which is
    * what makes video seeking work.
    */
