@@ -60,6 +60,8 @@ model User {
   notifications    Notification[]
   activity         ActivityLog[]
   tours            TourCompletion[]
+  scormPackages    ScormPackage[]
+  scormStates      ScormState[]
 
   @@index([role])
   @@index([department])
@@ -165,6 +167,8 @@ model Lesson {
 
   /// VIDEO: playable URL or /api/media/<key>. RESOURCE: download URL.
   contentUrl String?
+  /// SCORM: the imported package this lesson launches.
+  scormPackageId String?
   /// ARTICLE: markdown body.
   contentText String?
   /// Short blurb shown in the curriculum list.
@@ -178,6 +182,8 @@ model Lesson {
   updatedAt DateTime @updatedAt
 
   section      Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  scormPackage ScormPackage?    @relation(fields: [scormPackageId], references: [id], onDelete: SetNull)
+  scormStates  ScormState[]
   questions    QuizQuestion[]
   attempts     QuizAttempt[]
   progress     LessonProgress[]
@@ -517,4 +523,69 @@ model ActivityLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// An imported SCORM package: the extracted files plus what the manifest said
+/// about them. One package backs one lesson, but the record is separate so a
+/// re-import can replace the files without disturbing the lesson.
+model ScormPackage {
+  id String @id @default(cuid())
+
+  /// "1.2" or "2004". Decides which JavaScript API the player exposes.
+  version String
+  /// Title from the manifest, kept for reference when the lesson is renamed.
+  title String
+  /// Path within the package that the manifest launches, e.g. "index_lms.html".
+  launchHref String
+  /// Storage prefix the files were extracted under, e.g. "scorm/<id>".
+  storageKey String
+  /// How many files were extracted, for the admin view and for sanity checks.
+  fileCount Int @default(0)
+  /// Total extracted bytes.
+  sizeBytes Int @default(0)
+  /// Manifest identifier, useful when tracing a package back to its authoring tool.
+  manifestId String?
+
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  lessons    Lesson[]
+
+  @@index([uploadedById])
+}
+
+/// Per-learner SCORM runtime state.
+///
+/// `cmi` is the whole data model as the content last committed it, stored as
+/// JSON because the CMI namespace is open-ended and content writes keys we have
+/// no schema for. The columns beside it are the few values Lumina acts on, lifted
+/// out so progress, scoring and resume do not need to parse JSON on every read.
+model ScormState {
+  id       String @id @default(cuid())
+  userId   String
+  lessonId String
+
+  /// Raw CMI key/value pairs, exactly as committed.
+  cmi String @default("{}")
+  /// Normalised across versions: not attempted | incomplete | completed | passed | failed
+  lessonStatus String @default("not attempted")
+  scoreRaw     Float?
+  scoreMax     Float?
+  scoreMin     Float?
+  /// cmi.suspend_data — where the content resumes from. Can be several KB.
+  suspendData String?
+  /// cmi.core.lesson_location, the content's own bookmark.
+  location String?
+  /// Accumulated session time in seconds, summed across attempts.
+  totalTimeSeconds Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
 }

@@ -9,6 +9,7 @@ import {
   FileText,
   HelpCircle,
   Layers,
+  Package,
   Paperclip,
   Pencil,
   PlayCircle,
@@ -31,10 +32,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Checkbox, Input, Select, Textarea } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LESSON_TYPES, type LessonType } from "@/lib/enums";
+import { LESSON_TYPE_LABEL, LESSON_TYPES, type LessonType } from "@/lib/enums";
 import { cn, formatDuration } from "@/lib/utils";
 
 import { QuizEditor, type EditableQuestion } from "./QuizEditor";
+import { ScormUpload } from "./ScormUpload";
 import { UploadField } from "./UploadField";
 
 export interface BuilderLesson {
@@ -47,6 +49,12 @@ export interface BuilderLesson {
   durationSeconds: number;
   isPreview: boolean;
   questions: EditableQuestion[];
+  scormPackage: {
+    title: string;
+    version: string;
+    fileCount: number;
+    sizeBytes: number;
+  } | null;
 }
 
 export interface BuilderSection {
@@ -60,6 +68,7 @@ const TYPE_ICONS: Record<LessonType, React.ReactNode> = {
   ARTICLE: <FileText className="h-4 w-4" />,
   QUIZ: <HelpCircle className="h-4 w-4" />,
   RESOURCE: <Paperclip className="h-4 w-4" />,
+  SCORM: <Package className="h-4 w-4" />,
 };
 
 const initialState: ActionState = {};
@@ -127,7 +136,7 @@ function LessonForm({
         >
           {LESSON_TYPES.map((option) => (
             <option key={option} value={option}>
-              {option.charAt(0) + option.slice(1).toLowerCase()}
+              {LESSON_TYPE_LABEL[option]}
             </option>
           ))}
         </Select>
@@ -161,6 +170,10 @@ function LessonForm({
             error={state.errors?.durationSeconds}
           />
         </>
+      )}
+
+      {type === "SCORM" && (
+        <ScormUpload lessonId={lesson?.id ?? null} current={lesson?.scormPackage ?? null} />
       )}
 
       {type === "ARTICLE" && (

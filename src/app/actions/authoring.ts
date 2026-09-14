@@ -688,3 +688,114 @@ export async function setCourseThumbnailAction(
   revalidatePath(`/instructor/courses/${courseId}`);
   if (existing) revalidatePath(`/courses/${existing.slug}`);
 }
+
+/* -------------------------------------------------------------------------- */
+/* SCORM                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface ScormImportResult {
+  ok: boolean;
+  error?: string;
+  packageTitle?: string;
+  version?: string;
+  fileCount?: number;
+}
+
+/**
+ * Imports a SCORM package and attaches it to a lesson.
+ *
+ * The lesson is switched to type SCORM on success, because a package and a
+ * video are mutually exclusive ways of being a lesson and leaving the old type
+ * would render the wrong player.
+ */
+export async function importScormAction(
+  formData: FormData
+): Promise<ScormImportResult> {
+  const lessonId = String(formData.get("lessonId") || "");
+  if (!lessonId) return { ok: false, error: "Missing lesson." };
+
+  const user = await assertCanEditLesson(lessonId);
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Choose a SCORM .zip to upload." };
+  }
+
+  const limit = maxUploadBytes();
+  if (file.size > limit) {
+    return {
+      ok: false,
+      error: `Package is too large. Maximum is ${Math.round(limit / 1024 / 1024)} MB.`,
+    };
+  }
+
+  // Browsers disagree about the type of a .zip — application/zip,
+  // application/x-zip-compressed, and sometimes nothing at all — so the
+  // extension is the more reliable signal, and the unzip is the real check.
+  if (!/\.zip$/i.test(file.name)) {
+    return { ok: false, error: "A SCORM package is a .zip file." };
+  }
+
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    select: {
+      scormPackageId: true,
+      section: { select: { courseId: true, course: { select: { slug: true } } } },
+    },
+  });
+  if (!lesson) return { ok: false, error: "Lesson not found." };
+
+  let result;
+  try {
+    const { importScormPackage } = await import("@/lib/scorm/import");
+    result = await importScormPackage(file, user.id);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "The package could not be imported.";
+    return { ok: false, error: message };
+  }
+
+  const previousPackageId = lesson.scormPackageId;
+
+  await db.lesson.update({
+    where: { id: lessonId },
+    data: { type: "SCORM", scormPackageId: result.packageId },
+  });
+
+  // Replacing a package leaves the old files orphaned, and a SCORM course is
+  // hundreds of files — worth clearing rather than leaving on the volume.
+  if (previousPackageId && previousPackageId !== result.packageId) {
+    const old = await db.scormPackage.findUnique({
+      where: { id: previousPackageId },
+      select: { storageKey: true, lessons: { select: { id: true } } },
+    });
+    if (old && old.lessons.length === 0) {
+      const { storage: store } = await import("@/lib/storage");
+      await store.deletePrefix(old.storageKey).catch(() => {});
+      await db.scormPackage.delete({ where: { id: previousPackageId } }).catch(() => {});
+    }
+  }
+
+  await logActivity({
+    userId: user.id,
+    action: "scorm.import",
+    entity: "lesson",
+    entityId: lessonId,
+    meta: {
+      version: result.manifest.version,
+      files: result.fileCount,
+      bytes: result.sizeBytes,
+    },
+  });
+
+  await recalcCourseStats(lesson.section.courseId);
+  revalidatePath(`/instructor/courses/${lesson.section.courseId}`);
+  revalidatePath(`/courses/${lesson.section.course.slug}`);
+
+  return {
+    ok: true,
+    packageTitle: result.manifest.title,
+    version: result.manifest.version,
+    fileCount: result.fileCount,
+  };
+}

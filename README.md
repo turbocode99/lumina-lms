@@ -120,7 +120,7 @@ Password for all seeded accounts: `Password123!`
 | **Catalog** | Full-text search across titles, subtitles, descriptions, tags, and instructor names; filter by category, level, and required-only; five sort orders; paginated. All filter state lives in the URL, so every view is linkable |
 | **Course page** | Objectives checklist, description, requirements, target audience, instructor bio, curriculum accordion with preview lessons unlocked, ratings distribution, Q&A |
 | **Player** | Custom video chrome — scrubber with buffer indicator, ±10s skip, playback speed, volume, fullscreen, keyboard shortcuts (`space`/`k`, `j`/`l`, `←`/`→`, `m`, `f`). Watch position is reported every 15s and the lesson auto-completes past a configurable threshold |
-| **Lesson types** | Video, article (markdown-ish prose), auto-graded quiz, downloadable resource |
+| **Lesson types** | Video, article (markdown-ish prose), auto-graded quiz, downloadable resource, imported SCORM package |
 | **Quizzes** | Single-choice, multi-select, and true/false. Graded server-side — the answer key never reaches the browser before submission. Configurable pass mark, attempt limits, and per-question explanations revealed after grading |
 | **Notes** | Per-lesson private notes |
 | **Q&A** | Threaded discussion per course and per lesson, with instructor badges and notifications |
@@ -419,6 +419,45 @@ relay being down is not a reason to fail either.
 
 To send through Postmark, SES, or Resend instead, implement `send` in a new file
 under `src/lib/email/` and register it — same shape as the storage driver.
+
+### SCORM packages
+
+Existing course libraries import as-is. Add a lesson, set its type to **SCORM
+package**, and upload the `.zip` an authoring tool exported — Storyline, Rise,
+Captivate and the rest all produce one. SCORM 1.2 and 2004 are both read.
+
+The import unpacks the archive, reads `imsmanifest.xml` for the launch file and
+the declared version, and stores the files under the lesson. A package that is
+not a SCORM package is refused with the reason: no manifest, unreadable XML, or
+a manifest pointing at a file the archive does not contain.
+
+**It reports into the same progress everything else uses.** When the content says
+it is complete, the lesson completes, course progress recalculates, and the
+certificate and compliance register follow. A SCORM lesson is not a side channel
+with its own private notion of done.
+
+**Completion is a high-water mark, deliberately.** SCORM content sets its status
+to "incomplete" on virtually every re-entry — it is describing the session it has
+just begun, not withdrawing the last one. Taken literally that would make a
+learner who finished mandatory training in March non-compliant the moment they
+reopened it in June, with their completion date erased. So a lesson that has been
+completed or passed stays that way: a retake can change the grade, it cannot
+unfinish the lesson.
+
+Score, bookmark and `suspend_data` are kept per learner, so content resumes where
+it was left. Time is accumulated across sessions rather than replaced.
+
+**What is not implemented.** SCORM 2004 sequencing and navigation — the rules
+that let a package control which SCO comes next — is a large specification of its
+own and is not read. Packages launch their first SCO, which is what single-SCO
+exports from the common authoring tools need, and that is almost all of them. A
+multi-SCO package will import and run, but Lumina will not walk it.
+
+Packages are served from `/api/scorm/<id>/content/...` behind the same access
+rule as the player: signed in, and enrolled, the author, an admin, or a preview
+lesson. The check runs per file, because the browser fetches each asset itself
+and an unauthenticated request for `answers.js` is as interesting as one for the
+launch page.
 
 ### Single sign-on (OIDC)
 
@@ -749,7 +788,7 @@ Delete `demo-assets/` if you don't want any of it; the seed reports what is miss
 
 Deliberately out of scope for v1, in rough order of usefulness:
 
-- SCORM / xAPI import for existing course libraries
+- xAPI statements to an external LRS (SCORM is done; xAPI is a different protocol)
 - Video transcripts and caption tracks
 
 ---

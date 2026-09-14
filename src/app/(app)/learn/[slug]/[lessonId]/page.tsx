@@ -10,6 +10,7 @@ import {
   ListChecks,
   MessageCircleQuestion,
   NotebookPen,
+  Package,
   Paperclip,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ import { QASection } from "@/components/course/QASection";
 import { LessonCompleteToggle } from "@/components/player/LessonComplete";
 import { NotesPanel } from "@/components/player/NotesPanel";
 import { Quiz } from "@/components/player/Quiz";
+import { ScormPlayer } from "@/components/player/ScormPlayer";
 import { VideoPlayer } from "@/components/player/VideoPlayer";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
@@ -80,6 +82,7 @@ export default async function LearnPage({
     where: { id: lessonId },
     include: {
       section: { select: { courseId: true, title: true } },
+      scormPackage: { select: { id: true, version: true, launchHref: true } },
       questions: {
         orderBy: { order: "asc" },
         select: {
@@ -260,6 +263,33 @@ export default async function LearnPage({
               lessonId={lessonId}
               poster={course.thumbnailUrl}
             />
+          ) : lesson.type === "SCORM" && lesson.scormPackage && hasAccess ? (
+            <ScormPlayer
+              packageId={lesson.scormPackage.id}
+              lessonId={lessonId}
+              version={lesson.scormPackage.version === "1.2" ? "1.2" : "2004"}
+              launchUrl={`/api/scorm/${lesson.scormPackage.id}/content/${lesson.scormPackage.launchHref
+                .split("/")
+                .map(encodeURIComponent)
+                .join("/")}`}
+              title={lesson.title}
+            />
+          ) : lesson.type === "SCORM" ? (
+            <Card>
+              <div className="flex flex-col items-center py-10 text-center">
+                <span className="neu-inset mb-5 flex h-16 w-16 items-center justify-center rounded-2xl text-[var(--text-muted)]">
+                  <Package className="h-7 w-7" />
+                </span>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                  {lesson.scormPackage ? "Enrol to open this course" : "No package attached"}
+                </h2>
+                <p className="mt-2 max-w-md text-sm text-[var(--text-muted)]">
+                  {lesson.scormPackage
+                    ? "This lesson runs an imported SCORM course. Enrol to launch it."
+                    : "The instructor has not uploaded a SCORM package for this lesson yet."}
+                </p>
+              </div>
+            </Card>
           ) : lesson.type === "QUIZ" ? (
             <Quiz
               lessonId={lessonId}

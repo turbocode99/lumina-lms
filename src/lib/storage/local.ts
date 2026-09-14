@@ -121,10 +121,28 @@ export class LocalStorageDriver implements StorageDriver {
     };
   }
 
+  /**
+   * `resolveKey` is what makes this safe to point at a path that came out of a
+   * ZIP: it resolves against ROOT and refuses anything that lands outside it,
+   * so a crafted entry name cannot write beyond the storage directory.
+   */
+  async putAt(key: string, data: Uint8Array, _contentType: string): Promise<void> {
+    const target = resolveKey(key);
+    if (!target) throw new Error(`Refusing to write outside storage root: ${key}`);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, data);
+  }
+
   async delete(key: string): Promise<void> {
     const target = resolveKey(key);
     if (!target) return;
     await fs.rm(target, { force: true });
+  }
+
+  async deletePrefix(prefix: string): Promise<void> {
+    const target = resolveKey(prefix);
+    if (!target) return;
+    await fs.rm(target, { recursive: true, force: true });
   }
 
   async exists(key: string): Promise<boolean> {

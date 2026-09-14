@@ -10,7 +10,7 @@ export type Role = (typeof ROLES)[number];
 export const COURSE_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 export type CourseStatus = (typeof COURSE_STATUSES)[number];
 
-export const LESSON_TYPES = ["VIDEO", "ARTICLE", "QUIZ", "RESOURCE"] as const;
+export const LESSON_TYPES = ["VIDEO", "ARTICLE", "QUIZ", "RESOURCE", "SCORM"] as const;
 export type LessonType = (typeof LESSON_TYPES)[number];
 
 export const QUESTION_TYPES = ["SINGLE", "MULTI", "TRUE_FALSE"] as const;
@@ -51,4 +51,5 @@ export const LESSON_TYPE_LABEL: Record<LessonType, string> = {
   ARTICLE: "Article",
   QUIZ: "Quiz",
   RESOURCE: "Resource",
+  SCORM: "SCORM package",
 };

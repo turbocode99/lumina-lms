@@ -9,6 +9,7 @@ import {
   FileText,
   HelpCircle,
   Lock,
+  Package,
   Paperclip,
   PlayCircle,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const ICONS: Record<LessonType, React.ReactNode> = {
   ARTICLE: <FileText className="h-4 w-4" />,
   QUIZ: <HelpCircle className="h-4 w-4" />,
   RESOURCE: <Paperclip className="h-4 w-4" />,
+  SCORM: <Package className="h-4 w-4" />,
 };
 
 /**

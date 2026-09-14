@@ -33,8 +33,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",
+    "@rgrove/parse-xml": "^5.0.0",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
+    "fflate": "^0.8.3",
     "jose": "^5.9.6",
     "lucide-react": "^0.474.0",
     "nanoid": "^5.0.9",
