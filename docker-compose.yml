@@ -29,6 +29,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Also passed as build args, because NEXT_PUBLIC_* is baked into the client
+      # bundle at build time; the `environment:` block below only reaches code
+      # rendered on the server.
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Lumina}
+        NEXT_PUBLIC_APP_TAGLINE: ${NEXT_PUBLIC_APP_TAGLINE:-Learning, elevated.}
+        NEXT_PUBLIC_ORG_NAME: ${NEXT_PUBLIC_ORG_NAME:-Your Organization}
     image: lumina-lms:latest
     container_name: lumina-lms
     restart: unless-stopped
