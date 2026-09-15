@@ -37,7 +37,24 @@ RUN npx prisma generate
 # used to sign anything — the runtime secret comes from the environment. A fixed
 # placeholder would be rejected by the guard in src/lib/auth.ts, which is the
 # point of that guard.
+# NEXT_PUBLIC_* values are inlined into the client bundle as the build runs,
+# so they have to be present *here* and not only in the runtime environment.
+# Supplying them at runtime alone leaves server-rendered text correct while
+# anything rendered on the client shows the fallback -- which is how a
+# deployment for one organisation still said "Your Organization" in the
+# sidebar while the dashboard beside it already used the real name.
+ARG NEXT_PUBLIC_APP_NAME="Lumina"
+ARG NEXT_PUBLIC_APP_TAGLINE="Learning, elevated."
+ARG NEXT_PUBLIC_ORG_NAME="Your Organization"
+ENV NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME}
+ENV NEXT_PUBLIC_APP_TAGLINE=${NEXT_PUBLIC_APP_TAGLINE}
+ENV NEXT_PUBLIC_ORG_NAME=${NEXT_PUBLIC_ORG_NAME}
+
 RUN AUTH_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')" npm run build
+
+# Stage the packages the entrypoint's CLIs need into /cli-modules, computed
+# from the installed tree rather than listed by hand -- see the script for why.
+RUN node scripts/collect-cli-modules.js
 
 
 # --- Runtime ---------------------------------------------------------------
@@ -60,9 +77,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Schema, migrations, and the Prisma CLI are needed so the container can run
 # `prisma migrate deploy` on start.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+
+# The CLIs the entrypoint runs (Prisma, and tsx for the optional seed) plus the
+# full closure of their dependencies, staged in the builder. This replaces a
+# hand-written list of package directories: that list silently went stale when
+# Prisma 6.19 gave @prisma/config dependencies of its own, and the container
+# crash-looped on `Cannot find module 'effect'` before it could reach the schema
+# sync. Computing the closure at build time means an upstream dependency can no
+# longer break the image unnoticed.
+COPY --from=builder --chown=nextjs:nodejs /cli-modules ./node_modules
 
 # The generated demo thumbnails/videos/PDFs that prisma/seed.ts installs when
 # SEED_ON_START=true. Without this, a Docker deployment run with the demo
@@ -71,18 +94,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_module
 # finds nothing there.
 COPY --from=builder --chown=nextjs:nodejs /app/demo-assets ./demo-assets
 
-# tsx (plus its one real dependency, esbuild) so SEED_ON_START=true can run
-# prisma/seed.ts directly with `node`, with no dev dependencies or network
-# access needed at container start. Both packages are devDependencies, so the
-# standalone trace above does not pick them up on its own; they are pulled
-# from the builder stage's full node_modules instead. esbuild's native binary
-# is platform-specific, but since deps/builder/runner all share the same
-# node:22-alpine base, `npm ci` in the deps stage already resolved the correct
-# one — the same reasoning that lets Prisma's own native engine work here via
-# libc6-compat, installed above.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/esbuild ./node_modules/esbuild
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@esbuild ./node_modules/@esbuild
+# tsx and esbuild travel in the staged closure above, so SEED_ON_START=true can
+# run prisma/seed.ts directly with `node` — no dev dependencies and no network
+# access at container start. esbuild's native binary is platform-specific, but
+# since deps/builder/runner all share the same node:22-alpine base, `npm ci` in
+# the deps stage already resolved the right one — the same reasoning that lets
+# Prisma's native engine work here via libc6-compat, installed above.
 
 # Volumes for the SQLite file and uploaded media.
 RUN mkdir -p /app/data /app/storage && chown -R nextjs:nodejs /app/data /app/storage

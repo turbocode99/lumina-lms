@@ -29,6 +29,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Also passed as build args, because NEXT_PUBLIC_* is baked into the client
+      # bundle at build time; the `environment:` block below only reaches code
+      # rendered on the server.
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Lumina}
+        NEXT_PUBLIC_APP_TAGLINE: ${NEXT_PUBLIC_APP_TAGLINE:-Learning, elevated.}
+        NEXT_PUBLIC_ORG_NAME: ${NEXT_PUBLIC_ORG_NAME:-Your Organization}
     image: lumina-lms:latest
     container_name: lumina-lms
     restart: unless-stopped
@@ -56,6 +63,42 @@ services:
       NEXT_PUBLIC_ORG_NAME: ${NEXT_PUBLIC_ORG_NAME:-Your Organization}
 
       SEED_ON_START: ${SEED_ON_START:-false}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+
+      # Absolute base for links that leave the app -- e.g. the course link in a
+      # reminder email, which has nowhere to resolve a relative path against.
+      APP_URL: ${APP_URL:-}
+
+      # Email. EMAIL_DRIVER is "none" until set, and every notification then
+      # renders in-product only; nothing fails, it just never leaves the host.
+      EMAIL_DRIVER: ${EMAIL_DRIVER:-none}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_REJECT_UNAUTHORIZED: ${SMTP_REJECT_UNAUTHORIZED:-true}
+
+      # Single sign-on. Inert unless OIDC_ISSUER and the client credentials are
+      # all present, which is what keeps the sign-in page showing email only.
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
+      OIDC_SCOPES: ${OIDC_SCOPES:-}
+      OIDC_BUTTON_LABEL: ${OIDC_BUTTON_LABEL:-}
+      OIDC_AUTO_PROVISION: ${OIDC_AUTO_PROVISION:-}
+      OIDC_DEFAULT_ROLE: ${OIDC_DEFAULT_ROLE:-}
+
+      # Shared secret the scheduled-reminder endpoint checks before doing work.
+      CRON_SECRET: ${CRON_SECRET:-}
+
+      # Only read by the s3 and azure storage drivers; ignored by the default.
+      S3_BUCKET: ${S3_BUCKET:-}
+      AZURE_CONTAINER: ${AZURE_CONTAINER:-}
+
       NODE_ENV: production
     volumes:
       - lumina-data:/app/data
